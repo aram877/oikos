@@ -1,0 +1,27 @@
+# Next.js
+.next/
+out/
+
+# Node
+node_modules/
+
+# Build artifacts
+npm-debug.log*
+
+# Local env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Generated — do not commit WASM binary (copied from node_modules by scripts/copy-wasm.mjs)
+public/sqlite3.wasm
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+*.swp
