@@ -1,34 +1,48 @@
-import type { OpfsSAHPoolDatabase } from '@sqlite.org/sqlite-wasm'
 import type { BackupFile, BackupContents, BackupMetadata, AccountRow, CategoryRow, TransactionRow } from '../types'
 import { BACKUP_VERSION } from '../types'
-import { execRead, now } from '../queryUtils'
+import { getSupabase } from '../supabase'
+import { getActiveAccountId } from '../accountContext'
 
 /**
  * Reads all rows from all tables (including soft-deleted) for backup.
- * Returns only the `contents` portion — caller wraps it in BackupFile.
- *
- * Synchronous: called from the Worker context where SQLite runs.
+ * Scoped to the current user's active account.
  */
-export function exportAllForBackup(db: OpfsSAHPoolDatabase): BackupContents {
-  const accounts = execRead(
-    db,
-    'SELECT id, name, currency, created_at, deleted_at FROM accounts ORDER BY created_at',
-  ) as unknown as AccountRow[]
+export async function exportAllForBackup(): Promise<BackupContents> {
+  const [supabase, accountId] = await Promise.all([
+    Promise.resolve(getSupabase()),
+    getActiveAccountId(),
+  ])
 
-  const categories = execRead(
-    db,
-    'SELECT id, name, parent_id, created_at, deleted_at FROM categories ORDER BY created_at',
-  ) as unknown as CategoryRow[]
+  const [accountsRes, categoriesRes, transactionsRes] = await Promise.all([
+    supabase
+      .from('accounts')
+      .select('id, name, currency, created_at, deleted_at')
+      .eq('id', accountId)
+      .order('created_at'),
 
-  const transactions = execRead(
-    db,
-    `SELECT id, account_id, category_id, amount_cents, currency, date,
-            description, notes, import_hash, created_at, updated_at, deleted_at
-     FROM transactions
-     ORDER BY date, created_at`,
-  ) as unknown as TransactionRow[]
+    supabase
+      .from('categories')
+      .select('id, account_id, name, parent_id, created_at, deleted_at')
+      .eq('account_id', accountId)
+      .order('created_at'),
 
-  return { accounts, categories, transactions }
+    supabase
+      .from('transactions')
+      .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, created_at, updated_at, deleted_at')
+      .eq('account_id', accountId)
+      .order('date')
+      .order('created_at'),
+  ])
+
+  if (accountsRes.error)     throw new Error(`[exportBackup] accounts: ${accountsRes.error.message}`)
+  if (categoriesRes.error)   throw new Error(`[exportBackup] categories: ${categoriesRes.error.message}`)
+  if (transactionsRes.error) throw new Error(`[exportBackup] transactions: ${transactionsRes.error.message}`)
+
+  return {
+    accounts:     (accountsRes.data     ?? []) as AccountRow[],
+    categories:   (categoriesRes.data   ?? []) as CategoryRow[],
+    transactions: (transactionsRes.data ?? []) as TransactionRow[],
+  }
 }
 
 function buildMetadata(contents: BackupContents): BackupMetadata {
@@ -48,18 +62,14 @@ function buildMetadata(contents: BackupContents): BackupMetadata {
 
 /**
  * Builds a complete BackupFile with metadata.
- * Synchronous: call from within the Worker.
  */
-export function buildBackupFile(
-  db: OpfsSAHPoolDatabase,
-  schemaVersion: number,
-): BackupFile {
-  const contents = exportAllForBackup(db)
+export async function buildBackupFile(): Promise<BackupFile> {
+  const contents = await exportAllForBackup()
   return {
     version:        BACKUP_VERSION,
-    exported_at:    now(),
+    exported_at:    new Date().toISOString(),
     app_version:    '0.1.0',
-    schema_version: schemaVersion,
+    schema_version: 1,
     contents,
     metadata:       buildMetadata(contents),
   }
@@ -67,21 +77,15 @@ export function buildBackupFile(
 
 /**
  * Triggers a JSON file download in the browser (main-thread only).
- *
- * Usage: call this on the main thread after receiving the serialised backup
- * from the Worker via postMessage.
- *
- * @param json  The JSON string from buildBackupFile()
- * @param filename  Optional filename override
  */
 export function downloadBackupJson(
   json: string,
   filename = `finance-backup-${new Date().toISOString().slice(0, 10)}.json`,
 ): void {
   const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)

@@ -1,115 +1,118 @@
-import type { OpfsSAHPoolDatabase } from '@sqlite.org/sqlite-wasm'
 import type { CategoryRow, InsertCategoryInput, UpdateCategoryInput } from '../types'
-import { execRead, execWrite, now, uuid } from '../queryUtils'
+import { getSupabase } from '../supabase'
+import { getActiveAccountId } from '../accountContext'
 
 /**
- * Lists all active categories.
- * Top-level categories (parent_id IS NULL) come first, then children,
- * both sorted by name within their group.
+ * Lists all active categories for the current account.
+ * Top-level (parent_id IS NULL) first, then children, both sorted by name.
  */
-export function listCategories(db: OpfsSAHPoolDatabase): CategoryRow[] {
-  return execRead(
-    db,
-    `SELECT id, name, parent_id, created_at, deleted_at
-     FROM categories
-     WHERE deleted_at IS NULL
-     ORDER BY parent_id IS NOT NULL, name`,
-  ) as unknown as CategoryRow[]
+export async function listCategories(): Promise<CategoryRow[]> {
+  const [supabase, accountId] = await Promise.all([
+    Promise.resolve(getSupabase()),
+    getActiveAccountId(),
+  ])
+
+  const { data, error } = await supabase
+    .from('categories')
+    .select('id, account_id, name, parent_id, created_at, deleted_at')
+    .eq('account_id', accountId)
+    .is('deleted_at', null)
+    .order('name')
+
+  if (error) throw new Error(`[categoryRepo.listCategories] ${error.message}`)
+
+  // Sort: top-level first, then children
+  const rows = (data ?? []) as CategoryRow[]
+  return rows.sort((a, b) => {
+    const aTop = a.parent_id === null ? 0 : 1
+    const bTop = b.parent_id === null ? 0 : 1
+    if (aTop !== bTop) return aTop - bTop
+    return a.name.localeCompare(b.name)
+  })
 }
 
 /**
  * Returns a single category by ID, or null if not found / soft-deleted.
  */
-export function getCategory(
-  db: OpfsSAHPoolDatabase,
-  id: string,
-): CategoryRow | null {
-  const rows = execRead(
-    db,
-    `SELECT id, name, parent_id, created_at, deleted_at
-     FROM categories
-     WHERE id = ? AND deleted_at IS NULL`,
-    [id],
-  ) as unknown as CategoryRow[]
-  return rows[0] ?? null
+export async function getCategory(id: string): Promise<CategoryRow | null> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('categories')
+    .select('id, account_id, name, parent_id, created_at, deleted_at')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single()
+
+  if (error?.code === 'PGRST116') return null
+  if (error) throw new Error(`[categoryRepo.getCategory] ${error.message}`)
+  return data as CategoryRow | null
 }
 
 /**
  * Inserts a new category and returns the created row.
- * Pass parent_id = null for a top-level category.
  */
-export function insertCategory(
-  db: OpfsSAHPoolDatabase,
-  input: InsertCategoryInput,
-): CategoryRow {
-  const id = uuid()
-  const ts = now()
-  const rows = execWrite(
-    db,
-    `INSERT INTO categories (id, name, parent_id, created_at, deleted_at)
-     VALUES (?, ?, ?, ?, NULL)
-     RETURNING id, name, parent_id, created_at, deleted_at`,
-    [id, input.name, input.parent_id ?? null, ts],
-  ) as unknown as CategoryRow[]
-  if (!rows[0]) throw new Error(`[categoryRepo] Insert failed for id ${id}`)
-  return rows[0]
+export async function insertCategory(input: InsertCategoryInput): Promise<CategoryRow> {
+  const accountId = await getActiveAccountId()
+  const supabase  = getSupabase()
+
+  const { data, error } = await supabase
+    .from('categories')
+    .insert({
+      account_id: accountId,
+      name:       input.name,
+      parent_id:  input.parent_id ?? null,
+    })
+    .select('id, account_id, name, parent_id, created_at, deleted_at')
+    .single()
+
+  if (error) throw new Error(`[categoryRepo.insertCategory] ${error.message}`)
+  if (!data) throw new Error('[categoryRepo.insertCategory] No row returned')
+  return data as CategoryRow
 }
 
 /**
  * Updates mutable fields on a category.
  * Returns the updated row, or null if not found.
  */
-export function updateCategory(
-  db: OpfsSAHPoolDatabase,
+export async function updateCategory(
   id: string,
   input: UpdateCategoryInput,
-): CategoryRow | null {
-  const sets: string[] = []
-  const bind: (string | null)[] = []
-
-  if (input.name !== undefined) {
-    sets.push('name = ?')
-    bind.push(input.name)
-  }
-  if (input.parent_id !== undefined) {
-    sets.push('parent_id = ?')
-    bind.push(input.parent_id ?? null)
+): Promise<CategoryRow | null> {
+  if (input.name === undefined && input.parent_id === undefined) {
+    return getCategory(id)
   }
 
-  if (sets.length === 0) return getCategory(db, id)
+  const updates: Record<string, unknown> = {}
+  if (input.name      !== undefined) updates['name']      = input.name
+  if (input.parent_id !== undefined) updates['parent_id'] = input.parent_id ?? null
 
-  bind.push(id)
-  const rows = execWrite(
-    db,
-    `UPDATE categories
-     SET ${sets.join(', ')}
-     WHERE id = ? AND deleted_at IS NULL
-     RETURNING id, name, parent_id, created_at, deleted_at`,
-    bind,
-  ) as unknown as CategoryRow[]
-  return rows[0] ?? null
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('categories')
+    .update(updates)
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id, account_id, name, parent_id, created_at, deleted_at')
+    .single()
+
+  if (error?.code === 'PGRST116') return null
+  if (error) throw new Error(`[categoryRepo.updateCategory] ${error.message}`)
+  return data as CategoryRow | null
 }
 
 /**
  * Soft-deletes a category.
- *
- * Note: does NOT cascade to transactions — orphaned transactions remain
- * with their category_id pointing to the now-deleted category.
- * The UI should treat missing categories gracefully.
- *
  * Returns true if the row was found and deleted.
  */
-export function softDeleteCategory(
-  db: OpfsSAHPoolDatabase,
-  id: string,
-): boolean {
-  const rows = execWrite(
-    db,
-    `UPDATE categories
-     SET deleted_at = ?
-     WHERE id = ? AND deleted_at IS NULL
-     RETURNING id`,
-    [now(), id],
-  )
-  return rows.length > 0
+export async function softDeleteCategory(id: string): Promise<boolean> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('categories')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id')
+
+  if (error) throw new Error(`[categoryRepo.softDeleteCategory] ${error.message}`)
+  return (data?.length ?? 0) > 0
 }

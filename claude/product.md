@@ -9,6 +9,8 @@ MVP Scope:
 - CSV import
 - Categories (with parent)
 - Dashboard monthly summary
+- AI based categorization if not provided by user
+- AI transactions analysis for given period summary (monthly, 3months, 4 months, yearly)
 
 Out of scope:
 

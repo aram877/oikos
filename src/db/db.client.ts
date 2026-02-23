@@ -1,24 +1,24 @@
 /**
- * Main-thread typed proxy for the database Worker.
+ * Typed client for all database operations — Supabase edition.
+ *
+ * This module has the same exported `dbClient` shape as the former SQLite
+ * Worker client.  All hooks and pages import from here and are unaffected
+ * by the backend change.
+ *
+ * `init()` is now a no-op (resolves immediately) because Supabase uses
+ * HTTP — there is no Worker to spin up or migrations to run.
  *
  * Usage:
  *   import { dbClient } from '@/db/db.client'
- *
- *   // Must be called once at app startup (inside a useEffect / layout).
- *   await dbClient.init()
- *
+ *   await dbClient.init()                         // no-op, safe to call
  *   const accounts = await dbClient.accounts.list()
- *
- * Singleton: the Worker is spawned once and reused for the lifetime of the page.
- * All methods return Promises that resolve with the typed result.
  */
 
 import type {
-  WorkerRequest,
-  WorkerResponse,
   AccountRow,
   CategoryRow,
   TransactionRow,
+  TransactionListRow,
   InsertAccountInput,
   UpdateAccountInput,
   InsertCategoryInput,
@@ -29,97 +29,81 @@ import type {
   BackupFile,
 } from './types'
 
-// ── Worker singleton ─────────────────────────────────────────────────────── //
-
-let _worker: Worker | null = null
-
-function getWorker(): Worker {
-  if (!_worker) {
-    _worker = new Worker(new URL('./db.worker.ts', import.meta.url))
-  }
-  return _worker
-}
-
-// ── Core postMessage wrapper ─────────────────────────────────────────────── //
-
-function call<T>(method: string, args?: unknown): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const id = crypto.randomUUID()
-    const worker = getWorker()
-
-    const handler = (e: MessageEvent<WorkerResponse>) => {
-      if (e.data.id !== id) return
-      worker.removeEventListener('message', handler)
-      if (e.data.error !== undefined) {
-        reject(new Error(e.data.error))
-      } else {
-        resolve(e.data.result as T)
-      }
-    }
-
-    worker.addEventListener('message', handler)
-    worker.postMessage({ id, method, args } satisfies WorkerRequest)
-  })
-}
+import * as accountRepo     from './repositories/accountRepo'
+import * as categoryRepo    from './repositories/categoryRepo'
+import * as transactionRepo from './repositories/transactionRepo'
+import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
+import { restoreBackup }                       from './backup/restoreBackup'
 
 // ── Typed client ─────────────────────────────────────────────────────────── //
 
 export const dbClient = {
   /**
-   * Opens the database and runs pending migrations.
-   * Must be awaited before any other method is called.
+   * No-op for Supabase — kept for API compatibility with all existing hooks.
+   * Resolves immediately.
    */
-  init: (): Promise<void> =>
-    call<void>('init'),
+  init: (): Promise<void> => Promise.resolve(),
 
   accounts: {
-    list:       ():                              Promise<AccountRow[]>    => call('accounts.list'),
-    get:        (id: string):                   Promise<AccountRow | null> => call('accounts.get', { id }),
-    insert:     (input: InsertAccountInput):    Promise<AccountRow>       => call('accounts.insert', input),
-    update:     (id: string, input: UpdateAccountInput): Promise<AccountRow | null> =>
-      call('accounts.update', { id, input }),
-    softDelete: (id: string):                   Promise<boolean>          => call('accounts.softDelete', { id }),
+    list:       ():                                                   Promise<AccountRow[]>      => accountRepo.listAccounts(),
+    get:        (id: string):                                         Promise<AccountRow | null> => accountRepo.getAccount(id),
+    insert:     (input: InsertAccountInput):                          Promise<AccountRow>        => accountRepo.insertAccount(input),
+    update:     (id: string, input: UpdateAccountInput):              Promise<AccountRow | null> => accountRepo.updateAccount(id, input),
+    softDelete: (id: string):                                         Promise<boolean>           => accountRepo.softDeleteAccount(id),
   },
 
   categories: {
-    list:       ():                               Promise<CategoryRow[]>     => call('categories.list'),
-    get:        (id: string):                    Promise<CategoryRow | null> => call('categories.get', { id }),
-    insert:     (input: InsertCategoryInput):    Promise<CategoryRow>        => call('categories.insert', input),
-    update:     (id: string, input: UpdateCategoryInput): Promise<CategoryRow | null> =>
-      call('categories.update', { id, input }),
-    softDelete: (id: string):                    Promise<boolean>            => call('categories.softDelete', { id }),
+    list:       ():                                                   Promise<CategoryRow[]>      => categoryRepo.listCategories(),
+    get:        (id: string):                                         Promise<CategoryRow | null> => categoryRepo.getCategory(id),
+    insert:     (input: InsertCategoryInput):                         Promise<CategoryRow>        => categoryRepo.insertCategory(input),
+    update:     (id: string, input: UpdateCategoryInput):             Promise<CategoryRow | null> => categoryRepo.updateCategory(id, input),
+    softDelete: (id: string):                                         Promise<boolean>            => categoryRepo.softDeleteCategory(id),
   },
 
   transactions: {
-    listByMonth: (yearMonth: string, accountId?: string): Promise<TransactionRow[]> =>
-      call('transactions.listByMonth', { yearMonth, accountId }),
-    get:        (id: string):                        Promise<TransactionRow | null> =>
-      call('transactions.get', { id }),
-    insert:     (input: InsertTransactionInput):     Promise<TransactionRow> =>
-      call('transactions.insert', input),
-    update:     (id: string, input: UpdateTransactionInput): Promise<TransactionRow | null> =>
-      call('transactions.update', { id, input }),
-    softDelete: (id: string):                        Promise<boolean> =>
-      call('transactions.softDelete', { id }),
-    getMonthlySummary: (yearMonth: string, accountId?: string): Promise<MonthlySummary> =>
-      call('transactions.getMonthlySummary', { yearMonth, accountId }),
+    listByMonth: (yearMonth: string, accountId?: string):             Promise<TransactionListRow[]>  => transactionRepo.listByMonth(yearMonth, accountId),
+    get:         (id: string):                                        Promise<TransactionRow | null> => transactionRepo.getTransaction(id),
+    insert:      (input: InsertTransactionInput):                     Promise<TransactionRow>        => transactionRepo.insertTransaction(input),
+    update:      (id: string, input: UpdateTransactionInput):         Promise<TransactionRow | null> => transactionRepo.updateTransaction(id, input),
+    softDelete:  (id: string):                                        Promise<boolean>               => transactionRepo.softDeleteTransaction(id),
+    getMonthlySummary: (yearMonth: string, accountId?: string):       Promise<MonthlySummary>        => transactionRepo.getMonthlySummary(yearMonth, accountId),
+    checkImportHashes: (hashes: string[]):                            Promise<string[]>              => transactionRepo.checkImportHashes(hashes),
+    insertBulk:        (inputs: InsertTransactionInput[]):            Promise<number>                => transactionRepo.insertTransactionsBulk(inputs),
+    findCategoryByDescription: (description: string):                 Promise<string | null>         => transactionRepo.findCategoryByDescription(description),
+    listByDateRange: (startDate: string, endDate: string, accountId?: string): Promise<TransactionListRow[]> =>
+      transactionRepo.listByDateRange(startDate, endDate, accountId),
+    countSameDescriptionInMonth: (description: string, yearMonth: string, excludeId: string): Promise<number> =>
+      transactionRepo.countSameDescriptionInMonth(description, yearMonth, excludeId),
+    updateCategoryByDescriptionInMonth: (description: string, yearMonth: string, categoryId: string | null, excludeId: string): Promise<number> =>
+      transactionRepo.updateCategoryByDescriptionInMonth(description, yearMonth, categoryId, excludeId),
   },
 
   backup: {
     /**
-     * Exports the full database as a BackupFile object.
-     * The caller is responsible for JSON.stringify + download (main thread).
+     * Exports the full database as a BackupFile.
      */
-    export: (): Promise<BackupFile> =>
-      call('backup.export'),
+    export: (): Promise<BackupFile> => buildBackupFile(),
 
     /**
-     * Replaces all local data with the provided backup.
-     * MUST be called only after explicit user confirmation in the UI.
-     *
-     * @param backup  The already-parsed BackupFile (not a JSON string).
+     * Replaces all account data with the provided backup.
+     * MUST be called only after explicit user confirmation.
      */
-    restore: (backup: unknown): Promise<void> =>
-      call('backup.restore', backup),
+    restore: (backup: unknown): Promise<void> => restoreBackup(backup),
+  },
+
+  /**
+   * Signs the user out and redirects to login.
+   * Replaces the old resetAndTerminate() which was OPFS-specific.
+   * The caller should redirect to /auth/login after this resolves.
+   */
+  resetAndTerminate: async (): Promise<void> => {
+    const { createClient } = await import('@/lib/supabase/client')
+    const { clearAccountCache } = await import('./accountContext')
+    clearAccountCache()
+    const supabase = createClient()
+    await supabase.auth.signOut()
   },
 }
+
+// Re-export downloadBackupJson for the settings page
+export { downloadBackupJson }

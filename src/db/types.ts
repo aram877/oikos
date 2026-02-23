@@ -1,4 +1,4 @@
-// ── Row types (mirror SQLite column names exactly) ───────────────────────── //
+// ── Row types (mirror Supabase column names exactly) ─────────────────────── //
 
 export interface AccountRow {
   id:         string
@@ -10,6 +10,7 @@ export interface AccountRow {
 
 export interface CategoryRow {
   id:         string
+  account_id: string
   name:       string
   parent_id:  string | null // NULL = top-level
   created_at: string
@@ -29,6 +30,13 @@ export interface TransactionRow {
   created_at:   string        // ISO-8601 datetime
   updated_at:   string        // ISO-8601 datetime
   deleted_at:   string | null
+}
+
+/** TransactionRow enriched with joined category fields — returned by list queries. */
+export interface TransactionListRow extends TransactionRow {
+  category_name:        string | null
+  category_parent_id:   string | null
+  parent_category_name: string | null
 }
 
 // ── Input types ──────────────────────────────────────────────────────────── //
@@ -110,7 +118,7 @@ export interface BackupFile {
   version:        typeof BACKUP_VERSION
   exported_at:    string // ISO-8601 datetime
   app_version:    string // e.g. "0.1.0"
-  schema_version: number // PRAGMA user_version at export time
+  schema_version: number
   contents:       BackupContents
   metadata:       BackupMetadata
 }
@@ -120,16 +128,11 @@ export interface ValidationResult {
   errors: string[]
 }
 
-// ── Worker message protocol ──────────────────────────────────────────────── //
+// ── Account member types ─────────────────────────────────────────────────── //
 
-export interface WorkerRequest {
-  id:     string
-  method: string
-  args?:  unknown
-}
-
-export interface WorkerResponse {
-  id:      string
-  result?: unknown
-  error?:  string
+export interface AccountMemberRow {
+  user_id:   string
+  email:     string
+  role:      'owner' | 'member'
+  joined_at: string
 }

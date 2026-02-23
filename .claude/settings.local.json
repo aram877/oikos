@@ -4,7 +4,14 @@
       "Bash(npx create-next-app:*)",
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(timeout 15 bash:*)",
+      "Bash(curl:*)",
+      "Bash(node node_modules/typescript/bin/tsc:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

@@ -1,99 +1,92 @@
-import type { OpfsSAHPoolDatabase } from '@sqlite.org/sqlite-wasm'
 import type { AccountRow, InsertAccountInput, UpdateAccountInput } from '../types'
-import { execRead, execWrite, now, uuid } from '../queryUtils'
+import { getSupabase } from '../supabase'
 
 /**
- * Lists all active (non-deleted) accounts, ordered by name.
+ * Lists all active (non-deleted) accounts the current user has access to,
+ * ordered by name.
  */
-export function listAccounts(db: OpfsSAHPoolDatabase): AccountRow[] {
-  return execRead(
-    db,
-    `SELECT id, name, currency, created_at, deleted_at
-     FROM accounts
-     WHERE deleted_at IS NULL
-     ORDER BY name`,
-  ) as unknown as AccountRow[]
+export async function listAccounts(): Promise<AccountRow[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('id, name, currency, created_at, deleted_at')
+    .is('deleted_at', null)
+    .order('name')
+
+  if (error) throw new Error(`[accountRepo.listAccounts] ${error.message}`)
+  return (data ?? []) as AccountRow[]
 }
 
 /**
  * Returns a single account by ID, or null if not found / soft-deleted.
  */
-export function getAccount(
-  db: OpfsSAHPoolDatabase,
-  id: string,
-): AccountRow | null {
-  const rows = execRead(
-    db,
-    `SELECT id, name, currency, created_at, deleted_at
-     FROM accounts
-     WHERE id = ? AND deleted_at IS NULL`,
-    [id],
-  ) as unknown as AccountRow[]
-  return rows[0] ?? null
+export async function getAccount(id: string): Promise<AccountRow | null> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('id, name, currency, created_at, deleted_at')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single()
+
+  if (error?.code === 'PGRST116') return null // not found
+  if (error) throw new Error(`[accountRepo.getAccount] ${error.message}`)
+  return data as AccountRow | null
 }
 
 /**
  * Inserts a new account and returns the created row.
  */
-export function insertAccount(
-  db: OpfsSAHPoolDatabase,
-  input: InsertAccountInput,
-): AccountRow {
-  const id = uuid()
-  const ts = now()
-  const rows = execWrite(
-    db,
-    `INSERT INTO accounts (id, name, currency, created_at, deleted_at)
-     VALUES (?, ?, ?, ?, NULL)
-     RETURNING id, name, currency, created_at, deleted_at`,
-    [id, input.name, input.currency, ts],
-  ) as unknown as AccountRow[]
-  if (!rows[0]) throw new Error(`[accountRepo] Insert failed for id ${id}`)
-  return rows[0]
+export async function insertAccount(input: InsertAccountInput): Promise<AccountRow> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('accounts')
+    .insert({ name: input.name, currency: input.currency })
+    .select('id, name, currency, created_at, deleted_at')
+    .single()
+
+  if (error) throw new Error(`[accountRepo.insertAccount] ${error.message}`)
+  if (!data) throw new Error('[accountRepo.insertAccount] No row returned')
+  return data as AccountRow
 }
 
 /**
- * Updates mutable fields on an account. No-op if nothing changes.
- * Returns the updated row, or null if the account was not found.
+ * Updates mutable fields on an account.
+ * Returns the updated row, or null if not found.
  */
-export function updateAccount(
-  db: OpfsSAHPoolDatabase,
+export async function updateAccount(
   id: string,
   input: UpdateAccountInput,
-): AccountRow | null {
-  if (input.name === undefined) {
-    return getAccount(db, id)
-  }
-  const rows = execWrite(
-    db,
-    `UPDATE accounts
-     SET name = ?
-     WHERE id = ? AND deleted_at IS NULL
-     RETURNING id, name, currency, created_at, deleted_at`,
-    [input.name, id],
-  ) as unknown as AccountRow[]
-  return rows[0] ?? null
+): Promise<AccountRow | null> {
+  if (input.name === undefined) return getAccount(id)
+
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('accounts')
+    .update({ name: input.name })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id, name, currency, created_at, deleted_at')
+    .single()
+
+  if (error?.code === 'PGRST116') return null
+  if (error) throw new Error(`[accountRepo.updateAccount] ${error.message}`)
+  return data as AccountRow | null
 }
 
 /**
- * Soft-deletes an account by setting deleted_at.
- *
- * Note: does NOT cascade to transactions — the caller is responsible for
- * deciding what to do with orphaned transactions (e.g. soft-delete them too).
- *
- * Returns true if the row was found and deleted, false otherwise.
+ * Soft-deletes an account.
+ * Returns true if the row was found and deleted.
  */
-export function softDeleteAccount(
-  db: OpfsSAHPoolDatabase,
-  id: string,
-): boolean {
-  const rows = execWrite(
-    db,
-    `UPDATE accounts
-     SET deleted_at = ?
-     WHERE id = ? AND deleted_at IS NULL
-     RETURNING id`,
-    [now(), id],
-  )
-  return rows.length > 0
+export async function softDeleteAccount(id: string): Promise<boolean> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('accounts')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id')
+
+  if (error) throw new Error(`[accountRepo.softDeleteAccount] ${error.message}`)
+  return (data?.length ?? 0) > 0
 }

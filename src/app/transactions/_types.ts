@@ -1,0 +1,7 @@
+export type DbStatus = 'initializing' | 'ready' | 'error'
+export type ListStatus = 'idle' | 'loading' | 'loaded' | 'error'
+export type PageStatus = 'initializing' | 'ready' | 'not-found' | 'error'
+export type SubmitStatus = 'idle' | 'submitting' | 'done'
+export type DeleteStep = 'idle' | 'confirm' | 'deleting'
+export type AmountSign = 'expense' | 'income'
+export type CategorizeStatus = 'idle' | 'running' | 'done'

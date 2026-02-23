@@ -1,25 +1,26 @@
-import type { OpfsSAHPoolDatabase } from '@sqlite.org/sqlite-wasm'
 import type { BackupFile } from '../types'
 import { validateBackup } from './validateBackup'
+import { getSupabase } from '../supabase'
+import { getActiveAccountId } from '../accountContext'
 
 /**
- * Restores a backup into the database.
+ * Restores a backup into the current account.
  *
- * Strategy: destructive replace within a single transaction.
- * - Deletes all rows from all tables (hard delete — this is a restore operation).
- * - Re-inserts all rows from the backup in dependency order:
- *   accounts → categories → transactions.
- * - Rolls back if anything fails, leaving the existing data intact.
+ * Strategy:
+ * 1. Validate the backup structure.
+ * 2. Soft-delete all current rows (set deleted_at) so existing IDs don't conflict.
+ * 3. Upsert accounts, categories, and transactions from the backup.
  *
- * IMPORTANT: This is an irreversible operation that replaces all local data.
- * The caller (Worker handler) must prompt the user for explicit confirmation
- * before calling this function.
+ * Note: Supabase does not support multi-table transactions from the client.
+ * Each table is upserted independently.  On partial failure the data may be
+ * inconsistent; the user should re-run the restore.
  *
- * Must be called from within a Web Worker (SQLite is Worker-only).
+ * IMPORTANT: This replaces all local data.  The caller must obtain explicit
+ * user confirmation before calling this function.
  *
- * @throws If validation fails or any SQL statement errors.
+ * @throws If validation fails or any Supabase call errors.
  */
-export function restoreBackup(db: OpfsSAHPoolDatabase, raw: unknown): void {
+export async function restoreBackup(raw: unknown): Promise<void> {
   const validation = validateBackup(raw)
   if (!validation.valid) {
     throw new Error(
@@ -27,66 +28,53 @@ export function restoreBackup(db: OpfsSAHPoolDatabase, raw: unknown): void {
     )
   }
 
-  const backup = raw as BackupFile
-  const { accounts, categories, transactions } = backup.contents
+  const backup    = raw as BackupFile
+  const supabase  = getSupabase()
+  const accountId = await getActiveAccountId()
+  const now       = new Date().toISOString()
 
-  db.exec('BEGIN')
-  try {
-    // Clear in reverse dependency order to avoid FK constraint violations.
-    db.exec('DELETE FROM transactions')
-    db.exec('DELETE FROM categories')
-    db.exec('DELETE FROM accounts')
+  // ── 1. Soft-delete existing rows ────────────────────────────────────────── //
 
-    // Restore accounts.
-    for (const a of accounts) {
-      db.exec({
-        sql: `INSERT INTO accounts (id, name, currency, created_at, deleted_at)
-              VALUES (?, ?, ?, ?, ?)`,
-        bind: [a.id, a.name, a.currency, a.created_at, a.deleted_at ?? null],
-      })
-    }
+  await Promise.all([
+    supabase
+      .from('transactions')
+      .update({ deleted_at: now })
+      .eq('account_id', accountId)
+      .is('deleted_at', null),
 
-    // Restore categories (parent_id may reference other categories — same-table FK).
-    // All rows are inserted in created_at order (exported that way), so parents
-    // arrive before children assuming they were created first — which is always true.
-    for (const c of categories) {
-      db.exec({
-        sql: `INSERT INTO categories (id, name, parent_id, created_at, deleted_at)
-              VALUES (?, ?, ?, ?, ?)`,
-        bind: [c.id, c.name, c.parent_id ?? null, c.created_at, c.deleted_at ?? null],
-      })
-    }
+    supabase
+      .from('categories')
+      .update({ deleted_at: now })
+      .eq('account_id', accountId)
+      .is('deleted_at', null),
+  ])
 
-    // Restore transactions.
-    for (const t of transactions) {
-      db.exec({
-        sql: `INSERT INTO transactions
-                (id, account_id, category_id, amount_cents, currency, date,
-                 description, notes, import_hash, created_at, updated_at, deleted_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        bind: [
-          t.id,
-          t.account_id,
-          t.category_id ?? null,
-          t.amount_cents,
-          t.currency,
-          t.date,
-          t.description,
-          t.notes ?? null,
-          t.import_hash ?? null,
-          t.created_at,
-          t.updated_at,
-          t.deleted_at ?? null,
-        ],
-      })
-    }
+  // ── 2. Upsert accounts ──────────────────────────────────────────────────── //
 
-    db.exec('COMMIT')
-  } catch (err) {
-    db.exec('ROLLBACK')
-    throw new Error(
-      `[restore] Restore failed and was rolled back. Your existing data is intact.\n` +
-        `  Error: ${err instanceof Error ? err.message : String(err)}`,
-    )
+  const { error: accErr } = await supabase
+    .from('accounts')
+    .upsert(backup.contents.accounts, { onConflict: 'id' })
+
+  if (accErr) throw new Error(`[restore] accounts: ${accErr.message}`)
+
+  // ── 3. Upsert categories ────────────────────────────────────────────────── //
+
+  const { error: catErr } = await supabase
+    .from('categories')
+    .upsert(backup.contents.categories, { onConflict: 'id' })
+
+  if (catErr) throw new Error(`[restore] categories: ${catErr.message}`)
+
+  // ── 4. Upsert transactions ──────────────────────────────────────────────── //
+
+  const CHUNK = 500
+  const txs   = backup.contents.transactions
+  for (let i = 0; i < txs.length; i += CHUNK) {
+    const chunk = txs.slice(i, i + CHUNK)
+    const { error: txErr } = await supabase
+      .from('transactions')
+      .upsert(chunk, { onConflict: 'id' })
+
+    if (txErr) throw new Error(`[restore] transactions chunk ${i}: ${txErr.message}`)
   }
 }
