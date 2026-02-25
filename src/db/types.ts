@@ -136,3 +136,54 @@ export interface AccountMemberRow {
   role:      'owner' | 'member'
   joined_at: string
 }
+
+// ── Shopping list types ───────────────────────────────────────────────────── //
+
+export interface ShoppingItemRow {
+  id:         string
+  account_id: string
+  name:       string
+  quantity:   string | null
+  added_by:   string | null
+  created_at: string
+}
+
+export interface InsertShoppingItemInput {
+  name:      string
+  quantity?: string | null
+}
+
+// ── Calendar event types ──────────────────────────────────────────────────── //
+
+export interface CalendarEventRow {
+  id:          string
+  account_id:  string
+  title:       string
+  description: string | null
+  start_date:  string
+  end_date:    string | null
+  all_day:     boolean
+  color:       string | null
+  created_by:  string | null
+  created_at:  string
+  updated_at:  string
+  deleted_at:  string | null
+}
+
+export interface InsertCalendarEventInput {
+  title:        string
+  description?: string | null
+  start_date:   string
+  end_date?:    string | null
+  all_day?:     boolean
+  color?:       string | null
+}
+
+export interface UpdateCalendarEventInput {
+  title?:       string
+  description?: string | null
+  start_date?:  string
+  end_date?:    string | null
+  all_day?:     boolean
+  color?:       string | null
+}
