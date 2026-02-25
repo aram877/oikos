@@ -27,11 +27,18 @@ import type {
   UpdateTransactionInput,
   MonthlySummary,
   BackupFile,
+  ShoppingItemRow,
+  InsertShoppingItemInput,
+  CalendarEventRow,
+  InsertCalendarEventInput,
+  UpdateCalendarEventInput,
 } from './types'
 
 import * as accountRepo     from './repositories/accountRepo'
 import * as categoryRepo    from './repositories/categoryRepo'
 import * as transactionRepo from './repositories/transactionRepo'
+import * as shoppingRepo    from './repositories/shoppingRepo'
+import * as calendarRepo    from './repositories/calendarRepo'
 import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
 import { restoreBackup }                       from './backup/restoreBackup'
 
@@ -76,6 +83,20 @@ export const dbClient = {
       transactionRepo.countSameDescriptionInMonth(description, yearMonth, excludeId),
     updateCategoryByDescriptionInMonth: (description: string, yearMonth: string, categoryId: string | null, excludeId: string): Promise<number> =>
       transactionRepo.updateCategoryByDescriptionInMonth(description, yearMonth, categoryId, excludeId),
+  },
+
+  shopping: {
+    list:   ():                               Promise<ShoppingItemRow[]> => shoppingRepo.listItems(),
+    insert: (input: InsertShoppingItemInput): Promise<ShoppingItemRow>   => shoppingRepo.insertItem(input),
+    delete: (id: string):                     Promise<boolean>           => shoppingRepo.deleteItem(id),
+  },
+
+  calendar: {
+    listByMonth:  (yearMonth: string):                            Promise<CalendarEventRow[]>      => calendarRepo.listByMonth(yearMonth),
+    listUpcoming: ():                                             Promise<CalendarEventRow[]>      => calendarRepo.listUpcoming(),
+    insert:       (input: InsertCalendarEventInput):              Promise<CalendarEventRow>        => calendarRepo.insertEvent(input),
+    update:       (id: string, input: UpdateCalendarEventInput):  Promise<CalendarEventRow | null> => calendarRepo.updateEvent(id, input),
+    softDelete:   (id: string):                                   Promise<boolean>                 => calendarRepo.softDeleteEvent(id),
   },
 
   backup: {
