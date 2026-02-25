@@ -30,6 +30,15 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser()
 
+  const profile = user
+    ? await supabase
+        .from('profiles')
+        .select('display_name, avatar_url')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => data)
+    : null
+
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
@@ -41,7 +50,20 @@ export default async function RootLayout({
               <Link href="/calendar"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Calendar</Link>
             </nav>
             <div className="flex items-center gap-3">
-              <span>{user.email}</span>
+              <Link href="/profile" className="flex items-center gap-2 hover:opacity-75 transition-opacity">
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    className="h-7 w-7 rounded-full object-cover"
+                    alt=""
+                  />
+                ) : (
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold dark:bg-neutral-700">
+                    {(profile?.display_name ?? user.email ?? '?')[0].toUpperCase()}
+                  </span>
+                )}
+                <span>{profile?.display_name ?? user.email}</span>
+              </Link>
               <LogoutButton />
             </div>
           </header>

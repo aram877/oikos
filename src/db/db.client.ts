@@ -32,6 +32,8 @@ import type {
   CalendarEventRow,
   InsertCalendarEventInput,
   UpdateCalendarEventInput,
+  ProfileRow,
+  UpdateProfileInput,
 } from './types'
 
 import * as accountRepo     from './repositories/accountRepo'
@@ -39,6 +41,7 @@ import * as categoryRepo    from './repositories/categoryRepo'
 import * as transactionRepo from './repositories/transactionRepo'
 import * as shoppingRepo    from './repositories/shoppingRepo'
 import * as calendarRepo    from './repositories/calendarRepo'
+import * as profileRepo     from './repositories/profileRepo'
 import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
 import { restoreBackup }                       from './backup/restoreBackup'
 
@@ -97,6 +100,12 @@ export const dbClient = {
     insert:       (input: InsertCalendarEventInput):              Promise<CalendarEventRow>        => calendarRepo.insertEvent(input),
     update:       (id: string, input: UpdateCalendarEventInput):  Promise<CalendarEventRow | null> => calendarRepo.updateEvent(id, input),
     softDelete:   (id: string):                                   Promise<boolean>                 => calendarRepo.softDeleteEvent(id),
+  },
+
+  profile: {
+    get:          ():                          Promise<ProfileRow | null> => profileRepo.getProfile(),
+    upsert:       (input: UpdateProfileInput): Promise<ProfileRow>        => profileRepo.upsertProfile(input),
+    uploadAvatar: (file: File):               Promise<string>            => profileRepo.uploadAvatar(file),
   },
 
   backup: {

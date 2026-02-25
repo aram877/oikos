@@ -153,6 +153,22 @@ export interface InsertShoppingItemInput {
   quantity?: string | null
 }
 
+// ── Profile types ─────────────────────────────────────────────────────────── //
+
+export interface ProfileRow {
+  id:            string
+  display_name:  string | null
+  date_of_birth: string | null  // YYYY-MM-DD
+  avatar_url:    string | null
+  updated_at:    string
+}
+
+export interface UpdateProfileInput {
+  display_name?:  string | null
+  date_of_birth?: string | null
+  avatar_url?:    string | null
+}
+
 // ── Calendar event types ──────────────────────────────────────────────────── //
 
 export interface CalendarEventRow {
