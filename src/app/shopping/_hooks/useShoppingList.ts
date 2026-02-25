@@ -114,8 +114,5 @@ export function useShoppingList() {
     }
   }, [])
 
-  // checkItem is an alias — checking = hard delete
-  const checkItem = removeItem
-
-  return { items, status, error, rtStatus, addItem, checkItem, removeItem }
+  return { items, status, error, rtStatus, addItem, removeItem }
 }
