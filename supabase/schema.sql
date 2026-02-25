@@ -1,8 +1,12 @@
 -- =============================================================================
--- Financial Tracker — Supabase Schema
+-- Household App — Supabase Schema  (single source of truth)
 -- =============================================================================
--- Run this once in:
---   Supabase Dashboard → SQL Editor → New query → paste → Run
+-- Run this once on a fresh Supabase project:
+--   Dashboard → SQL Editor → New query → paste → Run
+--
+-- This file is the complete, up-to-date schema.  All historical fix_*.sql
+-- patches have been folded in.  You never need to run those files on a
+-- fresh project — only run this one.
 --
 -- Order:
 --   1. Tables
@@ -10,6 +14,7 @@
 --   3. Row Level Security (enable + policies)
 --   4. Functions (RPCs)
 --   5. Trigger — auto-create account on user signup
+--   6. Realtime publications
 -- =============================================================================
 
 
@@ -78,6 +83,34 @@ CREATE TABLE IF NOT EXISTS public.invitations (
   accepted_at timestamptz
 );
 
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.shopping_items (
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid        NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  name       text        NOT NULL,
+  quantity   text,
+  added_by   uuid        REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.calendar_events (
+  id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id  uuid        NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  title       text        NOT NULL,
+  description text,
+  start_date  date        NOT NULL,
+  end_date    date,                          -- NULL = single-day event
+  all_day     boolean     NOT NULL DEFAULT true,
+  color       text,                          -- hex e.g. '#3b82f6'
+  created_by  uuid        REFERENCES auth.users(id),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  deleted_at  timestamptz                    -- soft delete
+);
+
 
 -- =============================================================================
 -- 2. INDEXES
@@ -109,6 +142,8 @@ ALTER TABLE public.account_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invitations     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shopping_items  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
 
 -- -----------------------------------------------------------------------------
 -- accounts
@@ -476,3 +511,66 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+-- =============================================================================
+-- 6. RLS POLICIES — shopping_items + calendar_events
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- shopping_items
+-- -----------------------------------------------------------------------------
+
+CREATE POLICY "members select shopping"
+  ON public.shopping_items FOR SELECT
+  USING (account_id IN (
+    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+  ));
+
+CREATE POLICY "members insert shopping"
+  ON public.shopping_items FOR INSERT
+  WITH CHECK (account_id IN (
+    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+  ));
+
+CREATE POLICY "members delete shopping"
+  ON public.shopping_items FOR DELETE
+  USING (account_id IN (
+    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+  ));
+
+-- -----------------------------------------------------------------------------
+-- calendar_events
+-- -----------------------------------------------------------------------------
+
+CREATE POLICY "members select calendar"
+  ON public.calendar_events FOR SELECT
+  USING (account_id IN (
+    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+  ));
+
+CREATE POLICY "members insert calendar"
+  ON public.calendar_events FOR INSERT
+  WITH CHECK (account_id IN (
+    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+  ));
+
+CREATE POLICY "members update calendar"
+  ON public.calendar_events FOR UPDATE
+  USING (account_id IN (
+    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+  ));
+
+CREATE POLICY "members delete calendar"
+  ON public.calendar_events FOR DELETE
+  USING (account_id IN (
+    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+  ));
+
+
+-- =============================================================================
+-- 7. REALTIME
+-- =============================================================================
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_items;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
