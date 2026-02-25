@@ -33,11 +33,17 @@ CREATE TABLE IF NOT EXISTS public.accounts (
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.account_members (
-  account_id  uuid  NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
-  user_id     uuid  NOT NULL REFERENCES auth.users(id)      ON DELETE CASCADE,
-  role        text  NOT NULL DEFAULT 'member'
-                    CHECK (role IN ('owner', 'member')),
-  joined_at   timestamptz NOT NULL DEFAULT now(),
+  account_id       uuid  NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  user_id          uuid  NOT NULL REFERENCES auth.users(id)      ON DELETE CASCADE,
+  role             text  NOT NULL DEFAULT 'member'
+                         CHECK (role IN ('owner', 'member')),
+  joined_at        timestamptz NOT NULL DEFAULT now(),
+  finance_access   text  NOT NULL DEFAULT 'read'
+                         CHECK (finance_access  IN ('none', 'read', 'write')),
+  shopping_access  text  NOT NULL DEFAULT 'write'
+                         CHECK (shopping_access IN ('none', 'read', 'write')),
+  calendar_access  text  NOT NULL DEFAULT 'write'
+                         CHECK (calendar_access IN ('none', 'read', 'write')),
   PRIMARY KEY (account_id, user_id)
 );
 
@@ -206,6 +212,18 @@ CREATE POLICY "account_members: delete self or as owner"
     )
   );
 
+-- Owners can update member permissions
+CREATE POLICY "account_members: owners can update permissions"
+  ON public.account_members FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members am
+      WHERE am.account_id = account_members.account_id
+        AND am.user_id    = auth.uid()
+        AND am.role       = 'owner'
+    )
+  );
+
 -- -----------------------------------------------------------------------------
 -- categories
 -- -----------------------------------------------------------------------------
@@ -217,6 +235,7 @@ CREATE POLICY "categories: members can read"
       SELECT 1 FROM public.account_members
       WHERE account_id = categories.account_id
         AND user_id    = auth.uid()
+        AND (role = 'owner' OR finance_access IN ('read', 'write'))
     )
   );
 
@@ -227,6 +246,7 @@ CREATE POLICY "categories: members can insert"
       SELECT 1 FROM public.account_members
       WHERE account_id = categories.account_id
         AND user_id    = auth.uid()
+        AND (role = 'owner' OR finance_access = 'write')
     )
   );
 
@@ -237,6 +257,7 @@ CREATE POLICY "categories: members can update"
       SELECT 1 FROM public.account_members
       WHERE account_id = categories.account_id
         AND user_id    = auth.uid()
+        AND (role = 'owner' OR finance_access = 'write')
     )
   );
 
@@ -247,6 +268,7 @@ CREATE POLICY "categories: members can delete"
       SELECT 1 FROM public.account_members
       WHERE account_id = categories.account_id
         AND user_id    = auth.uid()
+        AND (role = 'owner' OR finance_access = 'write')
     )
   );
 
@@ -261,6 +283,7 @@ CREATE POLICY "transactions: members can read"
       SELECT 1 FROM public.account_members
       WHERE account_id = transactions.account_id
         AND user_id    = auth.uid()
+        AND (role = 'owner' OR finance_access IN ('read', 'write'))
     )
   );
 
@@ -271,6 +294,7 @@ CREATE POLICY "transactions: members can insert"
       SELECT 1 FROM public.account_members
       WHERE account_id = transactions.account_id
         AND user_id    = auth.uid()
+        AND (role = 'owner' OR finance_access = 'write')
     )
   );
 
@@ -281,6 +305,7 @@ CREATE POLICY "transactions: members can update"
       SELECT 1 FROM public.account_members
       WHERE account_id = transactions.account_id
         AND user_id    = auth.uid()
+        AND (role = 'owner' OR finance_access = 'write')
     )
   );
 
@@ -291,6 +316,7 @@ CREATE POLICY "transactions: members can delete"
       SELECT 1 FROM public.account_members
       WHERE account_id = transactions.account_id
         AND user_id    = auth.uid()
+        AND (role = 'owner' OR finance_access = 'write')
     )
   );
 
@@ -402,10 +428,14 @@ $$;
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_account_members(p_account_id uuid)
 RETURNS TABLE (
-  user_id   uuid,
-  email     text,
-  role      text,
-  joined_at timestamptz
+  user_id         uuid,
+  email           text,
+  display_name    text,
+  role            text,
+  joined_at       timestamptz,
+  finance_access  text,
+  shopping_access text,
+  calendar_access text
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -423,10 +453,15 @@ BEGIN
   SELECT
     am.user_id,
     u.email::text,
+    COALESCE(p.display_name, split_part(u.email::text, '@', 1))::text,
     am.role,
-    am.joined_at
+    am.joined_at,
+    am.finance_access,
+    am.shopping_access,
+    am.calendar_access
   FROM public.account_members am
   JOIN auth.users u ON u.id = am.user_id
+  LEFT JOIN public.profiles p ON p.id = am.user_id
   WHERE am.account_id = p_account_id
   ORDER BY am.joined_at ASC;
 END;
@@ -553,19 +588,25 @@ CREATE TRIGGER on_auth_user_created
 CREATE POLICY "members select shopping"
   ON public.shopping_items FOR SELECT
   USING (account_id IN (
-    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+    SELECT account_id FROM public.account_members
+    WHERE user_id = auth.uid()
+      AND (role = 'owner' OR shopping_access IN ('read', 'write'))
   ));
 
 CREATE POLICY "members insert shopping"
   ON public.shopping_items FOR INSERT
   WITH CHECK (account_id IN (
-    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+    SELECT account_id FROM public.account_members
+    WHERE user_id = auth.uid()
+      AND (role = 'owner' OR shopping_access = 'write')
   ));
 
 CREATE POLICY "members delete shopping"
   ON public.shopping_items FOR DELETE
   USING (account_id IN (
-    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+    SELECT account_id FROM public.account_members
+    WHERE user_id = auth.uid()
+      AND (role = 'owner' OR shopping_access = 'write')
   ));
 
 -- -----------------------------------------------------------------------------
@@ -575,25 +616,33 @@ CREATE POLICY "members delete shopping"
 CREATE POLICY "members select calendar"
   ON public.calendar_events FOR SELECT
   USING (account_id IN (
-    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+    SELECT account_id FROM public.account_members
+    WHERE user_id = auth.uid()
+      AND (role = 'owner' OR calendar_access IN ('read', 'write'))
   ));
 
 CREATE POLICY "members insert calendar"
   ON public.calendar_events FOR INSERT
   WITH CHECK (account_id IN (
-    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+    SELECT account_id FROM public.account_members
+    WHERE user_id = auth.uid()
+      AND (role = 'owner' OR calendar_access = 'write')
   ));
 
 CREATE POLICY "members update calendar"
   ON public.calendar_events FOR UPDATE
   USING (account_id IN (
-    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+    SELECT account_id FROM public.account_members
+    WHERE user_id = auth.uid()
+      AND (role = 'owner' OR calendar_access = 'write')
   ));
 
 CREATE POLICY "members delete calendar"
   ON public.calendar_events FOR DELETE
   USING (account_id IN (
-    SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
+    SELECT account_id FROM public.account_members
+    WHERE user_id = auth.uid()
+      AND (role = 'owner' OR calendar_access = 'write')
   ));
 
 

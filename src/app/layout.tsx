@@ -48,6 +48,7 @@ export default async function RootLayout({
               <Link href="/transactions" className="hover:text-neutral-800 dark:hover:text-neutral-200">Finance</Link>
               <Link href="/shopping"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Shopping</Link>
               <Link href="/calendar"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Calendar</Link>
+              <Link href="/household"    className="hover:text-neutral-800 dark:hover:text-neutral-200">Household</Link>
             </nav>
             <div className="flex items-center gap-3">
               <Link href="/profile" className="flex items-center gap-2 hover:opacity-75 transition-opacity">
