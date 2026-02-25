@@ -1,5 +1,6 @@
-import type { AccountRow, InsertAccountInput, UpdateAccountInput } from '../types'
+import type { AccountRow, InsertAccountInput, UpdateAccountInput, UpdateMemberPermissionsInput } from '../types'
 import { getSupabase } from '../supabase'
+import { getActiveAccountId } from '../accountContext'
 
 /**
  * Lists all active (non-deleted) accounts the current user has access to,
@@ -72,6 +73,25 @@ export async function updateAccount(
   if (error?.code === 'PGRST116') return null
   if (error) throw new Error(`[accountRepo.updateAccount] ${error.message}`)
   return data as AccountRow | null
+}
+
+/**
+ * Updates permission columns on a member row.
+ * Caller must be the account owner (enforced at RLS level).
+ */
+export async function updateMemberPermissions(
+  userId: string,
+  input: UpdateMemberPermissionsInput,
+): Promise<void> {
+  const supabase = getSupabase()
+  const accountId = await getActiveAccountId()
+  const { error } = await supabase
+    .from('account_members')
+    .update(input)
+    .eq('account_id', accountId)
+    .eq('user_id', userId)
+
+  if (error) throw new Error(`[accountRepo.updateMemberPermissions] ${error.message}`)
 }
 
 /**

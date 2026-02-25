@@ -34,6 +34,7 @@ import type {
   UpdateCalendarEventInput,
   ProfileRow,
   UpdateProfileInput,
+  UpdateMemberPermissionsInput,
 } from './types'
 
 import * as accountRepo     from './repositories/accountRepo'
@@ -55,11 +56,13 @@ export const dbClient = {
   init: (): Promise<void> => Promise.resolve(),
 
   accounts: {
-    list:       ():                                                   Promise<AccountRow[]>      => accountRepo.listAccounts(),
-    get:        (id: string):                                         Promise<AccountRow | null> => accountRepo.getAccount(id),
-    insert:     (input: InsertAccountInput):                          Promise<AccountRow>        => accountRepo.insertAccount(input),
-    update:     (id: string, input: UpdateAccountInput):              Promise<AccountRow | null> => accountRepo.updateAccount(id, input),
-    softDelete: (id: string):                                         Promise<boolean>           => accountRepo.softDeleteAccount(id),
+    list:       ():                                                           Promise<AccountRow[]>      => accountRepo.listAccounts(),
+    get:        (id: string):                                                 Promise<AccountRow | null> => accountRepo.getAccount(id),
+    insert:     (input: InsertAccountInput):                                  Promise<AccountRow>        => accountRepo.insertAccount(input),
+    update:     (id: string, input: UpdateAccountInput):                      Promise<AccountRow | null> => accountRepo.updateAccount(id, input),
+    softDelete: (id: string):                                                 Promise<boolean>           => accountRepo.softDeleteAccount(id),
+    updateMemberPermissions: (userId: string, input: UpdateMemberPermissionsInput): Promise<void> =>
+      accountRepo.updateMemberPermissions(userId, input),
   },
 
   categories: {

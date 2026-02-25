@@ -130,11 +130,23 @@ export interface ValidationResult {
 
 // ── Account member types ─────────────────────────────────────────────────── //
 
+export type AccessLevel = 'none' | 'read' | 'write'
+
 export interface AccountMemberRow {
-  user_id:   string
-  email:     string
-  role:      'owner' | 'member'
-  joined_at: string
+  user_id:         string
+  email:           string
+  display_name:    string | null  // resolved via RPC (profiles join); never actually null
+  role:            'owner' | 'member'
+  joined_at:       string
+  finance_access:  AccessLevel
+  shopping_access: AccessLevel
+  calendar_access: AccessLevel
+}
+
+export interface UpdateMemberPermissionsInput {
+  finance_access?:  AccessLevel
+  shopping_access?: AccessLevel
+  calendar_access?: AccessLevel
 }
 
 // ── Shopping list types ───────────────────────────────────────────────────── //
