@@ -8,6 +8,7 @@ export function TxItem({ tx }: { tx: TransactionListRow }) {
     <li>
       <Link
         href={`/transactions/${tx.id}`}
+        prefetch={false}
         className="flex items-center gap-4 py-3 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900 -mx-1 rounded px-1"
       >
         <span className="w-24 shrink-0 tabular-nums text-neutral-500">{tx.date}</span>
