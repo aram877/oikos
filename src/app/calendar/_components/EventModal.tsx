@@ -13,15 +13,20 @@ const PRESET_COLORS = [
   { label: 'Gray',   value: '#6b7280' },
 ]
 
-interface Props {
-  modal:       ModalState
-  onClose:     () => void
-  onAdd:       (input: InsertCalendarEventInput)                     => Promise<CalendarEventRow>
-  onUpdate:    (id: string, input: UpdateCalendarEventInput)         => Promise<CalendarEventRow | null>
-  onDelete:    (id: string)                                          => Promise<void>
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export function EventModal({ modal, onClose, onAdd, onUpdate, onDelete }: Props) {
+interface Props {
+  modal:        ModalState
+  onClose:      () => void
+  onAdd:        (input: InsertCalendarEventInput)                     => Promise<CalendarEventRow>
+  onUpdate:     (id: string, input: UpdateCalendarEventInput)         => Promise<CalendarEventRow | null>
+  onDelete:     (id: string)                                          => Promise<void>
+  memberNames:  Record<string, string>
+}
+
+export function EventModal({ modal, onClose, onAdd, onUpdate, onDelete, memberNames }: Props) {
   const isEdit = modal.mode === 'edit'
   const ev     = modal.event
 
@@ -120,6 +125,18 @@ export function EventModal({ modal, onClose, onAdd, onUpdate, onDelete }: Props)
               className="w-full rounded border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800"
             />
           </div>
+
+          {/* Attribution (edit mode only) */}
+          {isEdit && ev && (
+            <p className="text-xs leading-relaxed text-neutral-400">
+              {ev.created_by && (
+                <>Created by {memberNames[ev.created_by] ?? ev.created_by} · {formatDate(ev.created_at)}</>
+              )}
+              {ev.updated_by && (
+                <><br />Last edited by {memberNames[ev.updated_by] ?? ev.updated_by} · {formatDate(ev.updated_at)}</>
+              )}
+            </p>
+          )}
 
           {/* Date range */}
           <div className="grid grid-cols-2 gap-3">

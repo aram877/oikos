@@ -1,9 +1,10 @@
 'use client'
 
-import { useCalendar } from './_hooks/useCalendar'
-import { MonthGrid }   from './_components/MonthGrid'
-import { EventList }   from './_components/EventList'
-import { EventModal }  from './_components/EventModal'
+import { useCalendar }    from './_hooks/useCalendar'
+import { MonthGrid }      from './_components/MonthGrid'
+import { EventList }      from './_components/EventList'
+import { EventModal }     from './_components/EventModal'
+import { useMemberNames } from '@/hooks/useMemberNames'
 
 function formatMonthLabel(yearMonth: string): string {
   const [y, m] = yearMonth.split('-').map(Number)
@@ -11,6 +12,7 @@ function formatMonthLabel(yearMonth: string): string {
 }
 
 export default function CalendarPage() {
+  const memberNames = useMemberNames()
   const {
     view, setView,
     monthKey,
@@ -123,6 +125,7 @@ export default function CalendarPage() {
           onAdd={addEvent}
           onUpdate={updateEvent}
           onDelete={deleteEvent}
+          memberNames={memberNames}
         />
       )}
 

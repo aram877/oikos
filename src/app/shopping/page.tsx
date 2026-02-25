@@ -3,9 +3,11 @@
 import { useShoppingList } from './_hooks/useShoppingList'
 import { AddItemForm }     from './_components/AddItemForm'
 import { ShoppingItem }   from './_components/ShoppingItem'
+import { useMemberNames } from '@/hooks/useMemberNames'
 
 export default function ShoppingPage() {
-  const { items, status, error, rtStatus, addItem, checkItem, removeItem } = useShoppingList()
+  const { items, status, error, rtStatus, addItem, removeItem } = useShoppingList()
+  const memberNames = useMemberNames()
 
   return (
     <div className="mx-auto max-w-xl px-4 py-6">
@@ -59,8 +61,8 @@ export default function ShoppingPage() {
             <ShoppingItem
               key={item.id}
               item={item}
-              onCheck={checkItem}
               onRemove={removeItem}
+              creatorName={memberNames[item.added_by ?? ''] ?? null}
             />
           ))}
         </ul>

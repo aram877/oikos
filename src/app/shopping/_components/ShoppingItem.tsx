@@ -3,34 +3,38 @@
 import { useState } from 'react'
 import type { ShoppingItemRow } from '@/db/types'
 
-interface Props {
-  item:      ShoppingItemRow
-  onCheck:   (id: string) => void
-  onRemove:  (id: string) => void
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export function ShoppingItem({ item, onCheck, onRemove }: Props) {
-  const [fading, setFading] = useState(false)
+interface Props {
+  item:         ShoppingItemRow
+  onRemove:     (id: string) => void
+  creatorName:  string | null
+}
 
-  function handleCheck() {
-    setFading(true)
-    setTimeout(() => onCheck(item.id), 250)
-  }
+export function ShoppingItem({ item, onRemove, creatorName }: Props) {
+  const [checked, setChecked] = useState(false)
 
   return (
-    <li
-      className="flex items-center gap-3 py-3 transition-opacity duration-200"
-      style={{ opacity: fading ? 0 : 1 }}
-    >
+    <li className="flex items-start gap-3 py-3">
       <input
         type="checkbox"
-        onChange={handleCheck}
-        className="h-4 w-4 cursor-pointer rounded accent-neutral-800 dark:accent-neutral-200"
+        checked={checked}
+        onChange={() => setChecked((v) => !v)}
+        className="mt-0.5 h-4 w-4 cursor-pointer rounded accent-neutral-800 dark:accent-neutral-200"
         aria-label={`Check off ${item.name}`}
       />
-      <span className="min-w-0 flex-1 text-sm">{item.name}</span>
+      <span className="min-w-0 flex-1">
+        <span className={`text-sm${checked ? ' line-through opacity-60' : ''}`}>{item.name}</span>
+        {(creatorName || item.created_at) && (
+          <span className="mt-0.5 block text-xs text-neutral-400">
+            Added{creatorName ? ` by ${creatorName}` : ''}{item.created_at ? ` · ${formatDate(item.created_at)}` : ''}
+          </span>
+        )}
+      </span>
       {item.quantity && (
-        <span className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+        <span className="mt-0.5 shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
           {item.quantity}
         </span>
       )}

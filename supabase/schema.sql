@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
   all_day     boolean     NOT NULL DEFAULT true,
   color       text,                          -- hex e.g. '#3b82f6'
   created_by  uuid        REFERENCES auth.users(id),
+  updated_by  uuid        REFERENCES auth.users(id),
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz                    -- soft delete

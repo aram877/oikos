@@ -17,7 +17,7 @@ function monthRange(yearMonth: string): { start: string; end: string } {
   return { start, end }
 }
 
-const SELECT_COLS = 'id, account_id, title, description, start_date, end_date, all_day, color, created_by, created_at, updated_at, deleted_at'
+const SELECT_COLS = 'id, account_id, title, description, start_date, end_date, all_day, color, created_by, updated_by, created_at, updated_at, deleted_at'
 
 // ── Read operations ───────────────────────────────────────────────────────── //
 
@@ -108,8 +108,13 @@ export async function updateEvent(
   id: string,
   input: UpdateCalendarEventInput,
 ): Promise<CalendarEventRow | null> {
+  const supabase = getSupabase()
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id ?? null
+
   const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
+    updated_by: userId,
   }
 
   if (input.title       !== undefined) updates['title']       = input.title
@@ -119,7 +124,6 @@ export async function updateEvent(
   if (input.all_day     !== undefined) updates['all_day']     = input.all_day
   if (input.color       !== undefined) updates['color']       = input.color       ?? null
 
-  const supabase = getSupabase()
   const { data, error } = await supabase
     .from('calendar_events')
     .update(updates)
