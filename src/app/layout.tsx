@@ -4,6 +4,7 @@ import './globals.css'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/LogoutButton'
+import UserMenu     from '@/components/UserMenu'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -48,23 +49,13 @@ export default async function RootLayout({
               <Link href="/transactions" className="hover:text-neutral-800 dark:hover:text-neutral-200">Finance</Link>
               <Link href="/shopping"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Shopping</Link>
               <Link href="/calendar"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Calendar</Link>
-              <Link href="/household"    className="hover:text-neutral-800 dark:hover:text-neutral-200">Household</Link>
             </nav>
             <div className="flex items-center gap-3">
-              <Link href="/profile" className="flex items-center gap-2 hover:opacity-75 transition-opacity">
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    className="h-7 w-7 rounded-full object-cover"
-                    alt=""
-                  />
-                ) : (
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold dark:bg-neutral-700">
-                    {(profile?.display_name ?? user.email ?? '?')[0].toUpperCase()}
-                  </span>
-                )}
-                <span>{profile?.display_name ?? user.email}</span>
-              </Link>
+              <UserMenu
+                avatarUrl={profile?.avatar_url ?? null}
+                displayName={profile?.display_name ?? null}
+                email={user.email ?? ''}
+              />
               <LogoutButton />
             </div>
           </header>
