@@ -233,6 +233,8 @@ CREATE POLICY "members delete calendar"
 -- 7. Update get_account_members RPC — add display_name + permission columns
 -- ---------------------------------------------------------------------------
 
+DROP FUNCTION IF EXISTS public.get_account_members(uuid);
+
 CREATE OR REPLACE FUNCTION public.get_account_members(p_account_id uuid)
 RETURNS TABLE (
   user_id         uuid,

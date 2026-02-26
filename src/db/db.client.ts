@@ -32,6 +32,7 @@ import type {
   CalendarEventRow,
   InsertCalendarEventInput,
   UpdateCalendarEventInput,
+  BulkInsertCalendarEventInput,
   ProfileRow,
   UpdateProfileInput,
   UpdateMemberPermissionsInput,
@@ -98,11 +99,12 @@ export const dbClient = {
   },
 
   calendar: {
-    listByMonth:  (yearMonth: string):                            Promise<CalendarEventRow[]>      => calendarRepo.listByMonth(yearMonth),
-    listUpcoming: ():                                             Promise<CalendarEventRow[]>      => calendarRepo.listUpcoming(),
-    insert:       (input: InsertCalendarEventInput):              Promise<CalendarEventRow>        => calendarRepo.insertEvent(input),
-    update:       (id: string, input: UpdateCalendarEventInput):  Promise<CalendarEventRow | null> => calendarRepo.updateEvent(id, input),
-    softDelete:   (id: string):                                   Promise<boolean>                 => calendarRepo.softDeleteEvent(id),
+    listByMonth:  (yearMonth: string):                                    Promise<CalendarEventRow[]>      => calendarRepo.listByMonth(yearMonth),
+    listUpcoming: ():                                                     Promise<CalendarEventRow[]>      => calendarRepo.listUpcoming(),
+    insert:       (input: InsertCalendarEventInput):                      Promise<CalendarEventRow>        => calendarRepo.insertEvent(input),
+    update:       (id: string, input: UpdateCalendarEventInput):          Promise<CalendarEventRow | null> => calendarRepo.updateEvent(id, input),
+    softDelete:   (id: string):                                           Promise<boolean>                 => calendarRepo.softDeleteEvent(id),
+    bulkInsert:   (inputs: BulkInsertCalendarEventInput[]):               Promise<number>                  => calendarRepo.bulkInsertEvents(inputs),
   },
 
   profile: {
