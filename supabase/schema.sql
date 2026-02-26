@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   description   text    NOT NULL DEFAULT '',
   notes         text,
   import_hash   text,                              -- opaque dedup key from CSV import
+  is_transfer   boolean     NOT NULL DEFAULT false, -- true = internal transfer (excluded from summaries)
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
   deleted_at    timestamptz
@@ -426,6 +427,7 @@ BEGIN
   WHERE t.account_id               = p_account_id
     AND to_char(t.date, 'YYYY-MM') = p_year_month
     AND t.deleted_at               IS NULL
+    AND t.is_transfer              = false
   GROUP BY c.id, c.name, c.parent_id;
 END;
 $$;

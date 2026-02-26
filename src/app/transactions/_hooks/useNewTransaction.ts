@@ -19,7 +19,8 @@ export function useNewTransaction() {
   const [amountStr, setAmountStr] = useState<string>('')
   const [sign, setSign] = useState<AmountSign>('expense')
   const [accountId, setAccountId] = useState<string>('')
-  const [categoryId, setCategoryId] = useState<string>('')
+  const [categoryId,   setCategoryId]   = useState<string>('')
+  const [isTransfer,   setIsTransfer]   = useState<boolean>(false)
 
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle')
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -69,12 +70,13 @@ export function useNewTransaction() {
     setSubmitStatus('submitting')
     try {
       await dbClient.transactions.insert({
-        account_id: accountId,
+        account_id:  accountId,
         category_id: categoryId || null,
         amount_cents: cents,
         date,
         description: description.trim(),
-        notes: null,
+        notes:       null,
+        is_transfer: isTransfer,
       })
       setSubmitStatus('done')
       router.push('/transactions')
@@ -101,6 +103,8 @@ export function useNewTransaction() {
     setAccountId,
     categoryId,
     setCategoryId,
+    isTransfer,
+    setIsTransfer,
     submitStatus,
     submitError,
     handleSubmit,

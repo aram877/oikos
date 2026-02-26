@@ -46,6 +46,7 @@ export default async function RootLayout({
         {user && (
           <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
             <nav className="flex items-center gap-4 text-sm">
+              <Link href="/dashboard"    className="hover:text-neutral-800 dark:hover:text-neutral-200">Overview</Link>
               <Link href="/transactions" className="hover:text-neutral-800 dark:hover:text-neutral-200">Finance</Link>
               <Link href="/shopping"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Shopping</Link>
               <Link href="/calendar"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Calendar</Link>

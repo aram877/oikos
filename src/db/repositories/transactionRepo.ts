@@ -13,7 +13,7 @@ import { getActiveAccountId } from '../accountContext'
 
 const TX_SELECT = `
   id, account_id, category_id, amount_cents, currency, date,
-  description, notes, import_hash, created_at, updated_at, deleted_at,
+  description, notes, import_hash, is_transfer, created_at, updated_at, deleted_at,
   category:categories!category_id (
     name, parent_id,
     parent:categories!parent_id ( name )
@@ -39,6 +39,7 @@ function flattenTransactionListRow(row: SupabaseTxRow): TransactionListRow {
     description:  row.description,
     notes:        row.notes,
     import_hash:  row.import_hash,
+    is_transfer:  row.is_transfer,
     created_at:   row.created_at,
     updated_at:   row.updated_at,
     deleted_at:   row.deleted_at,
@@ -118,7 +119,7 @@ export async function getTransaction(id: string): Promise<TransactionRow | null>
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('transactions')
-    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, created_at, updated_at, deleted_at')
+    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, created_at, updated_at, deleted_at')
     .eq('id', id)
     .is('deleted_at', null)
     .single()
@@ -148,8 +149,9 @@ export async function insertTransaction(
       description:  input.description,
       notes:        input.notes        ?? null,
       import_hash:  input.import_hash  ?? null,
+      is_transfer:  input.is_transfer  ?? false,
     })
-    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, created_at, updated_at, deleted_at')
+    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, created_at, updated_at, deleted_at')
     .single()
 
   if (error) throw new Error(`[transactionRepo.insertTransaction] ${error.message}`)
@@ -173,6 +175,7 @@ export async function updateTransaction(
   if (input.date         !== undefined) updates['date']         = input.date
   if (input.description  !== undefined) updates['description']  = input.description
   if (input.notes        !== undefined) updates['notes']        = input.notes ?? null
+  if (input.is_transfer  !== undefined) updates['is_transfer']  = input.is_transfer
 
   const supabase = getSupabase()
   const { data, error } = await supabase
@@ -180,7 +183,7 @@ export async function updateTransaction(
     .update(updates)
     .eq('id', id)
     .is('deleted_at', null)
-    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, created_at, updated_at, deleted_at')
+    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, created_at, updated_at, deleted_at')
     .single()
 
   if (error?.code === 'PGRST116') return null
@@ -287,6 +290,7 @@ export async function insertTransactionsBulk(
     description:  input.description,
     notes:        input.notes        ?? null,
     import_hash:  input.import_hash  ?? null,
+    is_transfer:  input.is_transfer  ?? false,
   }))
 
   const { data, error } = await supabase

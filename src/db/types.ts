@@ -27,6 +27,7 @@ export interface TransactionRow {
   description:  string
   notes:        string | null
   import_hash:  string | null // opaque dedup key set by CSV importer
+  is_transfer:  boolean       // true = internal transfer, excluded from income/expense summaries
   created_at:   string        // ISO-8601 datetime
   updated_at:   string        // ISO-8601 datetime
   deleted_at:   string | null
@@ -61,13 +62,14 @@ export interface UpdateCategoryInput {
 }
 
 export interface InsertTransactionInput {
-  account_id:   string
-  category_id:  string | null
-  amount_cents: number
-  date:         string        // YYYY-MM-DD
-  description:  string
-  notes?:       string | null
-  import_hash?: string | null
+  account_id:    string
+  category_id:   string | null
+  amount_cents:  number
+  date:          string        // YYYY-MM-DD
+  description:   string
+  notes?:        string | null
+  import_hash?:  string | null
+  is_transfer?:  boolean
 }
 
 export interface UpdateTransactionInput {
@@ -76,6 +78,7 @@ export interface UpdateTransactionInput {
   date?:         string
   description?:  string
   notes?:        string | null
+  is_transfer?:  boolean
 }
 
 // ── Query result types ───────────────────────────────────────────────────── //

@@ -75,8 +75,13 @@ export function useTransactionList() {
 
   const hasActiveFilter = signFilter !== 'all' || selectedCategoryIds.size > 0
 
+  const transferTransactions = useMemo(
+    () => transactions.filter(tx => tx.is_transfer),
+    [transactions],
+  )
+
   const filteredTransactions = useMemo(() => {
-    let result = transactions
+    let result = transactions.filter(tx => !tx.is_transfer)
     if (signFilter === 'income')  result = result.filter(tx => tx.amount_cents > 0)
     if (signFilter === 'expense') result = result.filter(tx => tx.amount_cents < 0)
     if (selectedCategoryIds.size > 0) {
@@ -90,6 +95,7 @@ export function useTransactionList() {
     if (!hasActiveFilter) return summary
     let income = 0, expense = 0
     for (const tx of filteredTransactions) {
+      if (tx.is_transfer) continue
       if (tx.amount_cents > 0) income += tx.amount_cents
       else expense += tx.amount_cents
     }
@@ -118,6 +124,7 @@ export function useTransactionList() {
     filteredTransactions,
     filteredSummary,
     hasActiveFilter,
+    transferTransactions,
     clearFilters,
     goToPrevMonth: () => setMonthKey(prevMonthKey),
     goToNextMonth: () => setMonthKey(nextMonthKey),
