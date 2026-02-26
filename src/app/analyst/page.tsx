@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useAnalyst } from "./_hooks/useAnalyst";
 import { StatusMsg } from "@/components/StatusMsg";
@@ -49,6 +49,9 @@ function Card({
 // ── Section A — Cash Flow ─────────────────────────────────────────────────── //
 
 function CashFlowCard({ cf }: { cf: CashFlowSummary }) {
+  const [open, setOpen] = useState(false)
+  const transferTotal = cf.transfers.reduce((sum, tx) => sum + tx.amount_cents, 0)
+
   return (
     <Card title="Cash Flow Summary">
       <div className="grid grid-cols-3 text-center text-sm">
@@ -77,10 +80,46 @@ function CashFlowCard({ cf }: { cf: CashFlowSummary }) {
           </div>
         </div>
       </div>
-      <p className="mt-3 text-xs text-neutral-400 dark:text-neutral-500">
-        {cf.transferCount} transfer{cf.transferCount !== 1 ? "s" : ""} excluded
-        from income/expense totals
-      </p>
+
+      {cf.transferCount > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setOpen(o => !o)}
+            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 dark:hover:bg-neutral-900 dark:hover:text-neutral-300"
+          >
+            <span>
+              {cf.transferCount} transfer{cf.transferCount !== 1 ? "s" : ""} excluded from income/expense totals
+              {' · '}
+              <span className="tabular-nums">{formatEur(transferTotal)}</span>
+            </span>
+            <span>{open ? '▲' : '▼'}</span>
+          </button>
+
+          {open && (
+            <ul className="mt-1 divide-y divide-neutral-100 rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
+              {cf.transfers.map(tx => (
+                <li key={tx.id}>
+                  <Link
+                    href={`/transactions/${tx.id}`}
+                    prefetch={false}
+                    className="flex items-center gap-4 px-3 py-2.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                  >
+                    <span className="w-24 shrink-0 tabular-nums text-neutral-400">{tx.date}</span>
+                    <span className="min-w-0 flex-1 truncate text-neutral-500">{tx.description}</span>
+                    <span className="tabular-nums text-neutral-500">{formatEur(tx.amount_cents)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {cf.transferCount === 0 && (
+        <p className="mt-3 text-xs text-neutral-400 dark:text-neutral-500">
+          No transfers in this period.
+        </p>
+      )}
     </Card>
   );
 }
