@@ -81,7 +81,7 @@ export function useTransactionList() {
   )
 
   const filteredTransactions = useMemo(() => {
-    let result = transactions.filter(tx => !tx.is_transfer)
+    let result = transactions
     if (signFilter === 'income')  result = result.filter(tx => tx.amount_cents > 0)
     if (signFilter === 'expense') result = result.filter(tx => tx.amount_cents < 0)
     if (selectedCategoryIds.size > 0) {
