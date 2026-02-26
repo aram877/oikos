@@ -192,6 +192,7 @@ export interface CalendarEventRow {
   end_date:    string | null
   all_day:     boolean
   color:       string | null
+  source_uid:  string | null
   created_by:  string | null
   updated_by:  string | null
   created_at:  string
@@ -215,4 +216,14 @@ export interface UpdateCalendarEventInput {
   end_date?:    string | null
   all_day?:     boolean
   color?:       string | null
+}
+
+export interface BulkInsertCalendarEventInput {
+  title:       string
+  description: string | null
+  start_date:  string        // YYYY-MM-DD
+  end_date:    string | null
+  all_day:     boolean
+  color:       string | null
+  source_uid:  string        // required for dedup
 }

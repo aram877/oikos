@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
   end_date    date,                          -- NULL = single-day event
   all_day     boolean     NOT NULL DEFAULT true,
   color       text,                          -- hex e.g. '#3b82f6'
+  source_uid  text,                          -- RFC 5545 UID from ICS import
   created_by  uuid        REFERENCES auth.users(id),
   updated_by  uuid        REFERENCES auth.users(id),
   created_at  timestamptz NOT NULL DEFAULT now(),
@@ -145,6 +146,13 @@ CREATE INDEX IF NOT EXISTS transactions_account_date_idx
 ALTER TABLE public.transactions
   ADD CONSTRAINT transactions_account_import_hash_key
   UNIQUE (account_id, import_hash);
+
+-- Calendar events: unique dedup constraint for ICS import.
+-- NULL source_uid values (manually created events) are never equal in
+-- Postgres uniqueness checks, so manual events are unaffected.
+ALTER TABLE public.calendar_events
+  ADD CONSTRAINT calendar_events_account_source_uid_key
+  UNIQUE (account_id, source_uid);
 
 -- Categories: fast lookup by account
 CREATE INDEX IF NOT EXISTS categories_account_idx

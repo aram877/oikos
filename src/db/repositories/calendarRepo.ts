@@ -2,6 +2,7 @@ import type {
   CalendarEventRow,
   InsertCalendarEventInput,
   UpdateCalendarEventInput,
+  BulkInsertCalendarEventInput,
 } from '../types'
 import { getSupabase } from '../supabase'
 import { getActiveAccountId } from '../accountContext'
@@ -17,7 +18,7 @@ function monthRange(yearMonth: string): { start: string; end: string } {
   return { start, end }
 }
 
-const SELECT_COLS = 'id, account_id, title, description, start_date, end_date, all_day, color, created_by, updated_by, created_at, updated_at, deleted_at'
+const SELECT_COLS = 'id, account_id, title, description, start_date, end_date, all_day, color, source_uid, created_by, updated_by, created_at, updated_at, deleted_at'
 
 // ── Read operations ───────────────────────────────────────────────────────── //
 
@@ -151,4 +152,41 @@ export async function softDeleteEvent(id: string): Promise<boolean> {
 
   if (error) throw new Error(`[calendarRepo.softDeleteEvent] ${error.message}`)
   return (data?.length ?? 0) > 0
+}
+
+/**
+ * Bulk-inserts calendar events from an ICS import.
+ * Uses ON CONFLICT DO NOTHING so re-importing the same file is idempotent.
+ * Returns the count of actually-inserted rows.
+ */
+export async function bulkInsertEvents(
+  inputs: BulkInsertCalendarEventInput[],
+): Promise<number> {
+  if (inputs.length === 0) return 0
+
+  const accountId = await getActiveAccountId()
+  const supabase  = getSupabase()
+
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id ?? null
+
+  const rows = inputs.map((input) => ({
+    account_id:  accountId,
+    title:       input.title,
+    description: input.description,
+    start_date:  input.start_date,
+    end_date:    input.end_date,
+    all_day:     input.all_day,
+    color:       input.color,
+    source_uid:  input.source_uid,
+    created_by:  userId,
+  }))
+
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .upsert(rows, { onConflict: 'account_id,source_uid', ignoreDuplicates: true })
+    .select('id')
+
+  if (error) throw new Error(`[calendarRepo.bulkInsertEvents] ${error.message}`)
+  return data?.length ?? 0
 }

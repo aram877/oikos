@@ -1,10 +1,11 @@
 'use client'
 
-import { useCalendar }    from './_hooks/useCalendar'
-import { MonthGrid }      from './_components/MonthGrid'
-import { EventList }      from './_components/EventList'
-import { EventModal }     from './_components/EventModal'
-import { useMemberNames } from '@/hooks/useMemberNames'
+import { useCalendar }       from './_hooks/useCalendar'
+import { MonthGrid }         from './_components/MonthGrid'
+import { EventList }         from './_components/EventList'
+import { EventModal }        from './_components/EventModal'
+import { IcsImportButton }   from './_components/IcsImportButton'
+import { useMemberNames }    from '@/hooks/useMemberNames'
 
 function formatMonthLabel(yearMonth: string): string {
   const [y, m] = yearMonth.split('-').map(Number)
@@ -23,6 +24,7 @@ export default function CalendarPage() {
     openAddModal, openEditModal, closeModal,
     addEvent, updateEvent, deleteEvent,
     goToPrevMonth, goToNextMonth,
+    refresh,
   } = useCalendar()
 
   return (
@@ -44,6 +46,9 @@ export default function CalendarPage() {
           />
           {rtStatus === 'connected' ? 'Live' : rtStatus === 'error' ? 'Sync error' : 'Connecting'}
         </span>
+
+        {/* ICS import */}
+        <IcsImportButton onDone={refresh} />
 
         {/* View toggle */}
         <div className="flex rounded border border-neutral-200 text-sm dark:border-neutral-700">

@@ -163,6 +163,8 @@ export function useCalendar() {
   const openEditModal   = useCallback((event: CalendarEventRow)   => setModal({ mode: 'edit', event }), [])
   const closeModal      = useCallback(() => setModal(null), [])
 
+  const refresh = useCallback(() => loadEvents(monthKey), [loadEvents, monthKey])
+
   return {
     view, setView,
     monthKey,
@@ -173,5 +175,6 @@ export function useCalendar() {
     openAddModal, openEditModal, closeModal,
     addEvent, updateEvent, deleteEvent,
     goToPrevMonth, goToNextMonth,
+    refresh,
   }
 }
