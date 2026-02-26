@@ -26,6 +26,7 @@ export interface CashFlowSummary {
   totalExpenseCents: number  // negative
   netCents: number
   transferCount: number
+  transfers: TransactionListRow[]
 }
 
 export interface SubcategoryItem {
@@ -78,18 +79,8 @@ export interface AnomalyItem {
 
 // ── Transfer detection ────────────────────────────────────────────────────── //
 
-const TRANSFER_KEYWORDS = [
-  'transfer', 'überweisung', 'eigenüberweisung', 'umbuchung',
-  'sparbuch', 'sparplan', 'depot', 'etf', 'invest', 'vanguard',
-  'trade republic', 'scalable', 'flatex',
-]
-
 function isTransfer(tx: TransactionListRow): boolean {
-  const desc = tx.description.toLowerCase()
-  if (TRANSFER_KEYWORDS.some(kw => desc.includes(kw))) return true
-  const cat = (tx.category_name ?? '').toLowerCase()
-  if (cat.includes('transfer') || cat.includes('saving')) return true
-  return false
+  return tx.is_transfer === true
 }
 
 // ── Description normalisation (shared across sections C, D, E) ───────────── //
@@ -168,7 +159,7 @@ function daysDiff(a: string, b: string): number {
 function buildCashFlow(
   income: TransactionListRow[],
   expenses: TransactionListRow[],
-  transferCount: number,
+  transfers: TransactionListRow[],
 ): CashFlowSummary {
   const totalIncomeCents  = income.reduce((s, tx) => s + tx.amount_cents, 0)
   const totalExpenseCents = expenses.reduce((s, tx) => s + tx.amount_cents, 0)
@@ -176,7 +167,8 @@ function buildCashFlow(
     totalIncomeCents,
     totalExpenseCents,
     netCents: totalIncomeCents + totalExpenseCents,
-    transferCount,
+    transferCount: transfers.length,
+    transfers,
   }
 }
 
@@ -496,7 +488,7 @@ export function buildReport(
 
   const nonTransfers = [...income, ...expenses]
 
-  const cashFlow        = buildCashFlow(income, expenses, transfers.length)
+  const cashFlow        = buildCashFlow(income, expenses, transfers)
   const expenseBreakdown = buildExpenseBreakdown(expenses)
   const { fixedExpenses, variableTotalCents } = buildFixedExpenses(expenses, monthsInRange)
   const fixedNames = new Set(fixedExpenses.map(f => f.name))
