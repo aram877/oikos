@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-/** Redirect root URL to the main transactions screen. */
+/** Redirect root URL to the dashboard. */
 export default function Home() {
-  redirect('/transactions')
+  redirect('/dashboard')
 }

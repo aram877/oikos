@@ -13,6 +13,7 @@ interface TransactionFormProps {
   sign: AmountSign
   accountId: string
   categoryId: string
+  isTransfer: boolean
   busy: boolean
   submitError: string | null
   submitLabel: string
@@ -22,6 +23,7 @@ interface TransactionFormProps {
   onSignChange: (v: AmountSign) => void
   onAccountIdChange: (v: string) => void
   onCategoryIdChange: (v: string) => void
+  onIsTransferChange: (v: boolean) => void
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
   cancelHref?: string
   categoryChanged?: boolean
@@ -39,6 +41,7 @@ export function TransactionForm({
   sign,
   accountId,
   categoryId,
+  isTransfer,
   busy,
   submitError,
   submitLabel,
@@ -48,6 +51,7 @@ export function TransactionForm({
   onSignChange,
   onAccountIdChange,
   onCategoryIdChange,
+  onIsTransferChange,
   onSubmit,
   cancelHref = '/transactions',
   categoryChanged = false,
@@ -128,8 +132,23 @@ export function TransactionForm({
         </div>
       </div>
 
+      {/* Internal Transfer toggle */}
+      <label className="flex cursor-pointer items-center gap-2.5">
+        <input
+          type="checkbox"
+          checked={isTransfer}
+          onChange={(e) => onIsTransferChange(e.target.checked)}
+          disabled={busy}
+          className="h-4 w-4 rounded border-neutral-300 accent-neutral-900 dark:accent-neutral-100"
+        />
+        <span className="text-sm text-neutral-700 dark:text-neutral-300">
+          Internal transfer
+          <span className="ml-1.5 text-xs text-neutral-400">(e.g. to savings — excluded from income/expense)</span>
+        </span>
+      </label>
+
       {/* Category */}
-      <div className="flex flex-col gap-1.5">
+      <div className={`flex flex-col gap-1.5 ${isTransfer ? 'opacity-40 pointer-events-none' : ''}`}>
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Category</span>
           <select

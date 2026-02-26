@@ -7,11 +7,12 @@
       "Bash(npm run build:*)",
       "Bash(timeout 15 bash:*)",
       "Bash(curl:*)",
-      "Bash(node node_modules/typescript/bin/tsc:*)"
+      "Bash(node node_modules/typescript/bin/tsc:*)",
+      "Bash(cd:*)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

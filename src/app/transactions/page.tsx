@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import type { MonthlySummary } from '@/db/types'
+import type { MonthlySummary, TransactionListRow } from '@/db/types'
 import { useTransactionList } from './_hooks/useTransactionList'
 import { useAutoCategorize } from './_hooks/useAutoCategorize'
 import { TxItem } from './_components/TxItem'
@@ -25,6 +26,7 @@ export default function TransactionsPage() {
     setSignFilter,
     selectedCategoryIds,
     setSelectedCategoryIds,
+    transferTransactions,
     filteredTransactions,
     filteredSummary,
     hasActiveFilter,
@@ -118,7 +120,9 @@ export default function TransactionsPage() {
       )}
 
       {/* Summary bar */}
-      {loaded && filteredSummary !== null && <SummaryBar summary={filteredSummary} />}
+      {loaded && filteredSummary !== null && (
+        <SummaryBar summary={filteredSummary} transfers={transferTransactions} />
+      )}
 
       {/* Auto-categorize progress banner */}
       {categorizeStatus === 'running' && (
@@ -201,33 +205,81 @@ export default function TransactionsPage() {
   )
 }
 
-function SummaryBar({ summary }: { summary: MonthlySummary }) {
+function SummaryBar({
+  summary,
+  transfers,
+}: {
+  summary:   MonthlySummary
+  transfers: TransactionListRow[]
+}) {
+  const [open, setOpen] = useState(false)
+
+  const transferTotal = transfers.reduce((sum, tx) => sum + tx.amount_cents, 0)
+
   return (
-    <div className="mb-4 grid grid-cols-3 rounded-lg bg-neutral-50 px-4 py-3 text-center text-sm dark:bg-neutral-900">
-      <div>
-        <div className="mb-0.5 text-xs text-neutral-500">Income</div>
-        <div className="font-medium text-green-600 dark:text-green-400">
-          {formatEur(summary.total_income_cents)}
+    <div className="mb-4">
+      {/* Totals row */}
+      <div className="grid grid-cols-3 rounded-lg bg-neutral-50 px-4 py-3 text-center text-sm dark:bg-neutral-900">
+        <div>
+          <div className="mb-0.5 text-xs text-neutral-500">Income</div>
+          <div className="font-medium text-green-600 dark:text-green-400">
+            {formatEur(summary.total_income_cents)}
+          </div>
+        </div>
+        <div>
+          <div className="mb-0.5 text-xs text-neutral-500">Expenses</div>
+          <div className="font-medium text-red-600 dark:text-red-400">
+            {formatEur(summary.total_expense_cents)}
+          </div>
+        </div>
+        <div>
+          <div className="mb-0.5 text-xs text-neutral-500">Net</div>
+          <div
+            className={`font-semibold ${
+              summary.net_cents >= 0
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-red-600 dark:text-red-400'
+            }`}
+          >
+            {formatEur(summary.net_cents)}
+          </div>
         </div>
       </div>
-      <div>
-        <div className="mb-0.5 text-xs text-neutral-500">Expenses</div>
-        <div className="font-medium text-red-600 dark:text-red-400">
-          {formatEur(summary.total_expense_cents)}
+
+      {/* Transfers collapsible */}
+      {transfers.length > 0 && (
+        <div className="mt-1">
+          <button
+            onClick={() => setOpen(o => !o)}
+            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 dark:hover:bg-neutral-900 dark:hover:text-neutral-300"
+          >
+            <span>
+              {transfers.length} transfer{transfers.length !== 1 ? 's' : ''} excluded
+              {' · '}
+              <span className="tabular-nums">{formatEur(transferTotal)}</span>
+            </span>
+            <span>{open ? '▲' : '▼'}</span>
+          </button>
+
+          {open && (
+            <ul className="mt-1 divide-y divide-neutral-100 rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
+              {transfers.map(tx => (
+                <li key={tx.id}>
+                  <Link
+                    href={`/transactions/${tx.id}`}
+                    prefetch={false}
+                    className="flex items-center gap-4 px-3 py-2.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                  >
+                    <span className="w-24 shrink-0 tabular-nums text-neutral-400">{tx.date}</span>
+                    <span className="min-w-0 flex-1 truncate text-neutral-500">{tx.description}</span>
+                    <span className="tabular-nums text-neutral-500">{formatEur(tx.amount_cents)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </div>
-      <div>
-        <div className="mb-0.5 text-xs text-neutral-500">Net</div>
-        <div
-          className={`font-semibold ${
-            summary.net_cents >= 0
-              ? 'text-green-600 dark:text-green-400'
-              : 'text-red-600 dark:text-red-400'
-          }`}
-        >
-          {formatEur(summary.net_cents)}
-        </div>
-      </div>
+      )}
     </div>
   )
 }
