@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import type { TransactionListRow } from '@/db/types'
-import { formatEur } from '../_utils/currency'
+import Link from "next/link";
+import type { TransactionListRow } from "@/db/types";
+import { formatEur } from "../_utils/currency";
 
 export function TxItem({ tx }: { tx: TransactionListRow }) {
-  const isIncome = tx.amount_cents > 0
+  const isIncome = tx.amount_cents > 0;
 
   if (tx.is_transfer) {
     return (
@@ -11,10 +11,14 @@ export function TxItem({ tx }: { tx: TransactionListRow }) {
         <Link
           href={`/transactions/${tx.id}`}
           prefetch={false}
-          className="flex items-center gap-4 py-3 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900 -mx-1 rounded px-1 opacity-60"
+          className="flex items-center gap-4 py-3 text-xs lg:text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900 -mx-1 rounded px-1 opacity-60"
         >
-          <span className="w-24 shrink-0 tabular-nums text-neutral-400">{tx.date}</span>
-          <span className="min-w-0 flex-1 truncate text-neutral-500">{tx.description}</span>
+          <span className="w-24 shrink-0 tabular-nums text-neutral-400">
+            {tx.date}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-neutral-500">
+            {tx.description}
+          </span>
           <span className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-400 dark:bg-neutral-800">
             Transfer
           </span>
@@ -23,7 +27,7 @@ export function TxItem({ tx }: { tx: TransactionListRow }) {
           </span>
         </Link>
       </li>
-    )
+    );
   }
 
   return (
@@ -31,25 +35,30 @@ export function TxItem({ tx }: { tx: TransactionListRow }) {
       <Link
         href={`/transactions/${tx.id}`}
         prefetch={false}
-        className="flex items-center gap-4 py-3 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900 -mx-1 rounded px-1"
+        className="flex items-start gap-2 lg:gap-4 py-2 lg:py-3 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-900 -mx-1 rounded px-1 lg:text-sm"
       >
-        <span className="w-24 shrink-0 tabular-nums text-neutral-500">{tx.date}</span>
-        <span className="min-w-0 flex-1 truncate">{tx.description}</span>
-        {tx.category_name && (
-          <span className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
-            {tx.category_name}
-          </span>
-        )}
+        <span className="w-24 shrink-0 tabular-nums text-neutral-500">
+          {tx.date}
+        </span>
+        <div className="flex flex-wrap justify-between gap-2 lg:gap-4 flex-1 truncate">
+          <span className="min-w-0 truncate">{tx.description}</span>
+          {tx.category_name && (
+            <span className=" rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] lg:text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+              {tx.category_name}
+            </span>
+          )}
+        </div>
+
         <span
           className={`tabular-nums font-medium ${
             isIncome
-              ? 'text-green-600 dark:text-green-400'
-              : 'text-red-600 dark:text-red-400'
+              ? "text-green-600 dark:text-green-400"
+              : "text-red-600 dark:text-red-400"
           }`}
         >
           {formatEur(tx.amount_cents)}
         </span>
       </Link>
     </li>
-  )
+  );
 }

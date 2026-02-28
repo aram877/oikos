@@ -13,8 +13,8 @@ export function InviteSection({ invite, loading, error, success, reset, onInvite
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     reset()
-    await invite(email)
-    if (!error) {
+    const ok = await invite(email)
+    if (ok) {
       setEmail('')
       onInvited?.()
     }

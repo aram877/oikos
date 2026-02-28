@@ -122,15 +122,15 @@ export default function DashboardPage() {
               </h2>
               <div className="space-y-3">
                 {categoryBreakdown.map(([name, cents]) => (
-                  <div key={name} className="flex items-center gap-3">
-                    <span className="w-36 shrink-0 truncate text-sm">{name}</span>
+                  <div key={name} className="flex items-center gap-2 sm:gap-3">
+                    <span className="w-24 shrink-0 truncate text-sm sm:w-36">{name}</span>
                     <div className="flex-1 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
                       <div
                         className="h-2 rounded-full bg-red-400 dark:bg-red-500 transition-all"
                         style={{ width: `${Math.round((cents / maxSpend) * 100)}%` }}
                       />
                     </div>
-                    <span className="w-24 shrink-0 text-right tabular-nums text-sm text-red-600 dark:text-red-400">
+                    <span className="w-20 shrink-0 text-right tabular-nums text-sm text-red-600 dark:text-red-400 sm:w-24">
                       {formatEur(-cents)}
                     </span>
                   </div>

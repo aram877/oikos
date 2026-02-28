@@ -9,7 +9,8 @@ interface Props {
   onEventClick:  (event: CalendarEventRow) => void
 }
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAY_LABELS_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+const DAY_LABELS_FULL  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 function daysInMonth(yearMonth: string): Date[] {
   const [year, month] = yearMonth.split('-').map(Number)
@@ -47,8 +48,11 @@ export function MonthGrid({ monthKey, events, onDayClick, onEventClick }: Props)
     <div>
       {/* Day-of-week headers */}
       <div className="mb-1 grid grid-cols-7 text-center text-xs font-medium text-neutral-400">
-        {DAY_LABELS.map((d) => (
-          <div key={d} className="py-1">{d}</div>
+        {DAY_LABELS_FULL.map((d, i) => (
+          <div key={d + i} className="py-1">
+            <span className="hidden sm:inline">{d}</span>
+            <span className="sm:hidden">{DAY_LABELS_SHORT[i]}</span>
+          </div>
         ))}
       </div>
 
@@ -56,7 +60,7 @@ export function MonthGrid({ monthKey, events, onDayClick, onEventClick }: Props)
       <div className="grid grid-cols-7 gap-px bg-neutral-100 dark:bg-neutral-800">
         {/* Blank cells for offset */}
         {Array.from({ length: startOffset }).map((_, i) => (
-          <div key={`blank-${i}`} className="min-h-20 bg-white dark:bg-neutral-950" />
+          <div key={`blank-${i}`} className="min-h-14 bg-white dark:bg-neutral-950 sm:min-h-20" />
         ))}
 
         {days.map((day) => {
@@ -68,7 +72,7 @@ export function MonthGrid({ monthKey, events, onDayClick, onEventClick }: Props)
             <div
               key={dayStr}
               onClick={() => onDayClick(dayStr)}
-              className="min-h-20 cursor-pointer bg-white p-1 hover:bg-neutral-50 dark:bg-neutral-950 dark:hover:bg-neutral-900"
+              className="min-h-14 cursor-pointer bg-white p-1 hover:bg-neutral-50 dark:bg-neutral-950 dark:hover:bg-neutral-900 sm:min-h-20"
             >
               {/* Day number */}
               <div className="mb-0.5 flex justify-end">

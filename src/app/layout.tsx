@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import LogoutButton from '@/components/LogoutButton'
-import UserMenu     from '@/components/UserMenu'
+import HeaderNav         from '@/components/HeaderNav'
+import UserMenu          from '@/components/UserMenu'
+import NotificationBell  from '@/components/NotificationBell'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -45,19 +45,14 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {user && (
           <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-            <nav className="flex items-center gap-4 text-sm">
-              <Link href="/dashboard"    className="hover:text-neutral-800 dark:hover:text-neutral-200">Overview</Link>
-              <Link href="/transactions" className="hover:text-neutral-800 dark:hover:text-neutral-200">Finance</Link>
-              <Link href="/shopping"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Shopping</Link>
-              <Link href="/calendar"     className="hover:text-neutral-800 dark:hover:text-neutral-200">Calendar</Link>
-            </nav>
+            <HeaderNav />
             <div className="flex items-center gap-3">
+              <NotificationBell userId={user.id} />
               <UserMenu
                 avatarUrl={profile?.avatar_url ?? null}
                 displayName={profile?.display_name ?? null}
                 email={user.email ?? ''}
               />
-              <LogoutButton />
             </div>
           </header>
         )}

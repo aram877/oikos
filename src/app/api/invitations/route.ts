@@ -67,20 +67,43 @@ export async function POST(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  const redirectTo =
-    `${process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin}/auth/callback` +
-    `?invite_token=${inviteToken}`
+  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin
+
+  // ── 5a. Try to send an invite email for a brand-new user ────────────────── //
+  const newUserRedirectTo =
+    `${origin}/auth/callback?invite_token=${inviteToken}`
 
   const { error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
+    redirectTo: newUserRedirectTo,
     data: { invite_token: inviteToken },
   })
 
   if (inviteErr) {
-    // Soft-fail if user already exists — they'll still get access via the token.
-    // Only return an error for unexpected failures.
-    if (!inviteErr.message.toLowerCase().includes('already registered')) {
+    const isAlreadyRegistered =
+      inviteErr.code === 'email_exists' ||
+      inviteErr.message.toLowerCase().includes('already registered') ||
+      inviteErr.message.toLowerCase().includes('already exists')
+
+    if (!isAlreadyRegistered) {
       return NextResponse.json({ error: inviteErr.message }, { status: 500 })
+    }
+
+    // ── 5b. User is already registered — send a magic link to the accept page ─ //
+    // The magic link logs them in and lands them on /invite/accept where they
+    // explicitly confirm before their current household is replaced.
+    const acceptPath       = `/invite/accept?token=${inviteToken}`
+    const magicRedirectTo  = `${origin}/auth/callback?next=${encodeURIComponent(acceptPath)}`
+
+    const { error: otpErr } = await admin.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: magicRedirectTo,
+      },
+    })
+
+    if (otpErr) {
+      return NextResponse.json({ error: otpErr.message }, { status: 500 })
     }
   }
 

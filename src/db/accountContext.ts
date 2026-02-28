@@ -26,20 +26,18 @@ export async function getActiveAccountId(): Promise<string> {
 
   const supabase = getSupabase()
 
-  const { data, error } = await supabase
-    .from('account_members')
-    .select('account_id')
-    .order('joined_at', { ascending: true })
-    .limit(1)
-    .single()
+  // get_or_create_account() returns the user's current account_id, or
+  // bootstraps a fresh personal account if they have no membership
+  // (e.g. after being removed from a household).
+  const { data, error } = await supabase.rpc('get_or_create_account')
 
   if (error || !data) {
     throw new Error(
-      `[accountContext] Failed to resolve active account: ${error?.message ?? 'no membership found'}`,
+      `[accountContext] Failed to resolve active account: ${error?.message ?? 'no account found'}`,
     )
   }
 
-  _accountId = data.account_id as string
+  _accountId = data as string
   return _accountId
 }
 
