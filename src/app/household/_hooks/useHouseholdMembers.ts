@@ -71,13 +71,12 @@ export function useHouseholdMembers(): UseHouseholdMembersResult {
   const removeMember = useCallback(async (userId: string) => {
     const supabase = getSupabase()
     const accountId = await getActiveAccountId()
-    const { error: delError } = await supabase
-      .from('account_members')
-      .delete()
-      .eq('account_id', accountId)
-      .eq('user_id', userId)
+    const { error: rpcError } = await supabase.rpc('remove_account_member', {
+      p_account_id: accountId,
+      p_member_id:  userId,
+    })
 
-    if (delError) throw new Error(delError.message)
+    if (rpcError) throw new Error(rpcError.message)
     setMembers((ms) => ms.filter((m) => m.user_id !== userId))
   }, [])
 

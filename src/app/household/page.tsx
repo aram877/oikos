@@ -179,8 +179,8 @@ export default function HouseholdPage() {
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
     if (!inviteEmail.trim()) return
-    await invite(inviteEmail.trim())
-    if (!inviteError) setInviteEmail('')
+    const ok = await invite(inviteEmail.trim())
+    if (ok) setInviteEmail('')
   }
 
   return (

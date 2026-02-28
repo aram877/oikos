@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 export interface UseInviteResult {
-  invite:   (email: string) => Promise<void>
+  invite:   (email: string) => Promise<boolean>
   loading:  boolean
   error:    string | null
   success:  boolean
@@ -15,7 +15,7 @@ export function useInvite(): UseInviteResult {
   const [error,   setError]   = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  async function invite(email: string) {
+  async function invite(email: string): Promise<boolean> {
     setLoading(true)
     setError(null)
     setSuccess(false)
@@ -33,8 +33,10 @@ export function useInvite(): UseInviteResult {
       }
 
       setSuccess(true)
+      return true
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
+      return false
     } finally {
       setLoading(false)
     }

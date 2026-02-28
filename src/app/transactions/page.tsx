@@ -45,43 +45,50 @@ export default function TransactionsPage() {
     <div className="mx-auto max-w-2xl px-4 py-6">
 
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Transactions</h1>
-        <div className="flex items-center gap-2">
+      <div className="mb-6">
+        {/* Row 1: title + primary actions (always visible) */}
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-semibold">Transactions</h1>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/transactions/new"
+              className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+            >
+              + Add
+            </Link>
+            <Link
+              href="/settings"
+              className="rounded px-2 py-1.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+              aria-label="Settings"
+              title="Settings"
+            >
+              ⚙
+            </Link>
+          </div>
+        </div>
+
+        {/* Row 2: secondary actions — wrap on mobile */}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           {loaded && (
             <button
               onClick={startCategorize}
               disabled={categorizeStatus === 'running'}
-              className="rounded border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              className="rounded border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               Auto-categorize
             </button>
           )}
           <Link
             href="/analyst"
-            className="rounded border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            className="rounded border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             Analyst
           </Link>
           <Link
             href="/import"
-            className="rounded border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            className="rounded border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             Import CSV
-          </Link>
-          <Link
-            href="/transactions/new"
-            className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
-          >
-            + Add
-          </Link>
-          <Link
-            href="/settings"
-            className="rounded px-2 py-2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
-            aria-label="Settings"
-            title="Settings"
-          >
-            ⚙
           </Link>
         </div>
       </div>

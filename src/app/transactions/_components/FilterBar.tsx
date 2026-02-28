@@ -97,7 +97,7 @@ export function FilterBar({
         </button>
 
         {dropdownOpen && (
-          <div className="absolute left-0 top-full z-10 mt-1 max-h-64 min-w-48 overflow-y-auto rounded border border-neutral-200 bg-white py-1 shadow-md dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="absolute left-0 top-full z-10 mt-1 max-h-64 w-56 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-neutral-200 bg-white py-1 shadow-md dark:border-neutral-700 dark:bg-neutral-900">
 
             {/* Uncategorized */}
             <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800">
