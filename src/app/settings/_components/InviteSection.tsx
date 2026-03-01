@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { INVITABLE_ROLES } from '../_hooks/useInvite'
 import type { UseInviteResult } from '../_hooks/useInvite'
+import type { Role } from '@/lib/abilities'
 
 interface Props extends UseInviteResult {
   onInvited?: () => void
@@ -12,11 +14,12 @@ export function InviteSection({
   pendingInvitations, loadingPending, revoke,
 }: Props) {
   const [email, setEmail] = useState('')
+  const [role,  setRole]  = useState<Role>('parent')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     reset()
-    const ok = await invite(email)
+    const ok = await invite(email, role)
     if (ok) {
       setEmail('')
       onInvited?.()
@@ -26,6 +29,21 @@ export function InviteSection({
   return (
     <div className="flex flex-col gap-4">
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex gap-4">
+          {INVITABLE_ROLES.map((r) => (
+            <label key={r} className="flex items-center gap-1.5 cursor-pointer text-sm">
+              <input
+                type="radio"
+                name="invite-role"
+                value={r}
+                checked={role === r}
+                onChange={() => setRole(r)}
+                className="accent-blue-500"
+              />
+              <span className="capitalize">{r}</span>
+            </label>
+          ))}
+        </div>
         <div className="flex gap-2">
           <input
             type="email"
