@@ -10,7 +10,7 @@ export interface UseHouseholdMembersResult {
   members:           AccountMemberRow[]
   loading:           boolean
   error:             string | null
-  isOwner:           boolean
+  isAdmin:           boolean
   currentUserId:     string | null
   updatePermissions: (userId: string, input: UpdateMemberPermissionsInput) => Promise<void>
   removeMember:      (userId: string) => Promise<void>
@@ -20,7 +20,7 @@ export function useHouseholdMembers(): UseHouseholdMembersResult {
   const [members,       setMembers]       = useState<AccountMemberRow[]>([])
   const [loading,       setLoading]       = useState(true)
   const [error,         setError]         = useState<string | null>(null)
-  const [isOwner,       setIsOwner]       = useState(false)
+  const [isAdmin,       setIsAdmin]       = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [tick,          setTick]          = useState(0)
 
@@ -45,7 +45,7 @@ export function useHouseholdMembers(): UseHouseholdMembersResult {
         const rows = (data ?? []) as AccountMemberRow[]
         setMembers(rows)
         setCurrentUserId(uid)
-        setIsOwner(rows.some((m) => m.user_id === uid && m.role === 'owner'))
+        setIsAdmin(rows.some((m) => m.user_id === uid && m.role === 'admin'))
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))
       } finally {
@@ -84,7 +84,7 @@ export function useHouseholdMembers(): UseHouseholdMembersResult {
     members,
     loading,
     error,
-    isOwner,
+    isAdmin,
     currentUserId,
     updatePermissions,
     removeMember,

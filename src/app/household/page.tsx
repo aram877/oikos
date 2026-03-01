@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useHouseholdMembers } from './_hooks/useHouseholdMembers'
-import { useInvite } from '@/app/settings/_hooks/useInvite'
+import { useInvite, INVITABLE_ROLES } from '@/app/settings/_hooks/useInvite'
+import { ROLE_LABELS, ROLE_DESCRIPTIONS, canRole } from '@/lib/abilities'
 import type { AccessLevel, AccountMemberRow, UpdateMemberPermissionsInput } from '@/db/types'
+import type { Role } from '@/lib/abilities'
 
 const ACCESS_LEVELS: AccessLevel[] = ['none', 'read', 'write']
 
@@ -48,13 +50,13 @@ function AccessRadio({
 function MemberCard({
   member,
   isSelf,
-  isOwner,
+  isAdmin,
   onUpdatePermissions,
   onRemove,
 }: {
   member:              AccountMemberRow
   isSelf:              boolean
-  isOwner:             boolean
+  isAdmin:             boolean
   onUpdatePermissions: (input: UpdateMemberPermissionsInput) => Promise<void>
   onRemove:            () => Promise<void>
 }) {
@@ -64,6 +66,7 @@ function MemberCard({
 
   const displayName = member.display_name ?? member.email
   const initial     = displayName[0].toUpperCase()
+  const role        = member.role as Role
 
   async function handleRemove() {
     setRemoving(true)
@@ -96,9 +99,9 @@ function MemberCard({
 
         <div className="flex items-center gap-2">
           <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500">
-            {member.role}
+            {ROLE_LABELS[role] ?? role}
           </span>
-          {isOwner && !isSelf && member.role !== 'owner' && (
+          {isAdmin && !isSelf && role !== 'admin' && (
             confirmRemove ? (
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-neutral-500">Remove?</span>
@@ -132,8 +135,8 @@ function MemberCard({
         <p className="text-xs text-red-600">{removeError}</p>
       )}
 
-      {member.role === 'owner' ? (
-        <p className="text-xs text-neutral-400">Full access to all features</p>
+      {role === 'admin' ? (
+        <p className="text-xs text-neutral-400">{ROLE_DESCRIPTIONS.admin}</p>
       ) : (
         <div className="space-y-1.5 pt-1">
           <AccessRadio
@@ -141,21 +144,35 @@ function MemberCard({
             feature="Finance"
             value={member.finance_access}
             onChange={(v) => onUpdatePermissions({ finance_access: v })}
-            disabled={!isOwner}
+            disabled={!isAdmin || !canRole(role, 'finance', 'read')}
           />
           <AccessRadio
             memberId={member.user_id}
             feature="Shopping"
             value={member.shopping_access}
             onChange={(v) => onUpdatePermissions({ shopping_access: v })}
-            disabled={!isOwner}
+            disabled={!isAdmin}
           />
           <AccessRadio
             memberId={member.user_id}
             feature="Calendar"
             value={member.calendar_access}
             onChange={(v) => onUpdatePermissions({ calendar_access: v })}
-            disabled={!isOwner}
+            disabled={!isAdmin}
+          />
+          <AccessRadio
+            memberId={member.user_id}
+            feature="Settings"
+            value={member.settings_access}
+            onChange={(v) => onUpdatePermissions({ settings_access: v })}
+            disabled={!isAdmin}
+          />
+          <AccessRadio
+            memberId={member.user_id}
+            feature="AI"
+            value={member.ai_access}
+            onChange={(v) => onUpdatePermissions({ ai_access: v })}
+            disabled={!isAdmin}
           />
         </div>
       )}
@@ -165,21 +182,23 @@ function MemberCard({
 
 export default function HouseholdPage() {
   const {
-    members, loading, error, isOwner, currentUserId,
+    members, loading, error, isAdmin, currentUserId,
     updatePermissions, removeMember,
   } = useHouseholdMembers()
 
   const {
     invite, loading: inviting, error: inviteError,
     success: inviteSuccess, reset: resetInvite,
+    pendingInvitations, loadingPending, revoke,
   } = useInvite()
 
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole,  setInviteRole]  = useState<Role>('parent')
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
     if (!inviteEmail.trim()) return
-    const ok = await invite(inviteEmail.trim())
+    const ok = await invite(inviteEmail.trim(), inviteRole)
     if (ok) setInviteEmail('')
   }
 
@@ -199,7 +218,7 @@ export default function HouseholdPage() {
               key={member.user_id}
               member={member}
               isSelf={member.user_id === currentUserId}
-              isOwner={isOwner}
+              isAdmin={isAdmin}
               onUpdatePermissions={(input) => updatePermissions(member.user_id, input)}
               onRemove={() => removeMember(member.user_id)}
             />
@@ -207,29 +226,95 @@ export default function HouseholdPage() {
         </div>
       )}
 
-      {isOwner && (
-        <section className="border-t border-neutral-200 dark:border-neutral-800 pt-6 space-y-3">
+      {isAdmin && (
+        <section className="border-t border-neutral-200 dark:border-neutral-800 pt-6 space-y-4">
           <h2 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
             Invite someone
           </h2>
-          <form onSubmit={handleInvite} className="flex gap-2">
-            <input
-              type="email"
-              placeholder="Email address"
-              value={inviteEmail}
-              onChange={(e) => { setInviteEmail(e.target.value); resetInvite() }}
-              className="flex-1 rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              disabled={inviting || !inviteEmail.trim()}
-              className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {inviting ? 'Sending…' : 'Send invite'}
-            </button>
+
+          <form onSubmit={handleInvite} className="space-y-3">
+            {/* Role selector */}
+            <div className="flex gap-4">
+              {INVITABLE_ROLES.map((r) => (
+                <label key={r} className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="invite-role"
+                    value={r}
+                    checked={inviteRole === r}
+                    onChange={() => setInviteRole(r)}
+                    className="mt-0.5 accent-blue-500"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                      {ROLE_LABELS[r]}
+                    </span>
+                    <span className="block text-xs text-neutral-500">
+                      {ROLE_DESCRIPTIONS[r]}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            {/* Email + submit */}
+            <div className="flex gap-2">
+              <input
+                type="email"
+                placeholder="Email address"
+                value={inviteEmail}
+                onChange={(e) => { setInviteEmail(e.target.value); resetInvite() }}
+                className="flex-1 rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                disabled={inviting || !inviteEmail.trim()}
+                className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {inviting ? 'Sending…' : 'Send invite'}
+              </button>
+            </div>
+
+            {inviteError   && <p className="text-xs text-red-600">{inviteError}</p>}
+            {inviteSuccess && <p className="text-xs text-green-600">Invitation sent!</p>}
           </form>
-          {inviteError   && <p className="text-xs text-red-600">{inviteError}</p>}
-          {inviteSuccess && <p className="text-xs text-green-600">Invitation sent!</p>}
+
+          {/* Pending invitations */}
+          {(loadingPending || pendingInvitations.length > 0) && (
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500">
+                Pending invitations
+              </p>
+              {loadingPending ? (
+                <p className="text-xs text-neutral-400">Loading…</p>
+              ) : (
+                <ul className="space-y-1">
+                  {pendingInvitations.map((inv) => (
+                    <li
+                      key={inv.token}
+                      className="flex items-center justify-between rounded-md border border-neutral-200 dark:border-neutral-700 px-3 py-2"
+                    >
+                      <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                        {inv.email}
+                      </span>
+                      <span className="flex items-center gap-3">
+                        <span className="text-xs text-neutral-400">
+                          {ROLE_LABELS[inv.role]}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => revoke(inv.token)}
+                          className="text-xs text-red-500 hover:underline dark:text-red-400"
+                        >
+                          Revoke
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </section>
       )}
     </main>

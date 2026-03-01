@@ -401,6 +401,10 @@ CREATE POLICY "users can update own profile"
 -- notifications
 -- -----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS "user reads own notifications"   ON public.notifications;
+DROP POLICY IF EXISTS "user updates own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "user deletes own notifications" ON public.notifications;
+
 CREATE POLICY "user reads own notifications"
   ON public.notifications FOR SELECT
   USING (user_id = auth.uid());
