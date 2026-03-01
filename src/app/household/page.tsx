@@ -9,6 +9,14 @@ import type { Role } from '@/lib/abilities'
 
 const ACCESS_LEVELS: AccessLevel[] = ['none', 'read', 'write']
 
+function Avatar({ name }: { name: string }) {
+  return (
+    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-200 text-sm font-semibold dark:bg-neutral-700 shrink-0">
+      {name[0].toUpperCase()}
+    </span>
+  )
+}
+
 function AccessRadio({
   memberId,
   feature,
@@ -47,16 +55,38 @@ function AccessRadio({
   )
 }
 
-function MemberCard({
+function MemberRow({ member, isSelf }: { member: AccountMemberRow; isSelf: boolean }) {
+  const displayName = member.display_name ?? member.email
+  const role        = member.role as Role
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-neutral-200 dark:border-neutral-800 px-4 py-3">
+      <Avatar name={displayName} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
+            {displayName}
+            {isSelf && <span className="ml-1 text-xs text-neutral-400">(you)</span>}
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 shrink-0">
+            {ROLE_LABELS[role] ?? role}
+          </span>
+        </div>
+        {member.display_name && (
+          <div className="text-xs text-neutral-500 truncate">{member.email}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AdminMemberCard({
   member,
   isSelf,
-  isAdmin,
   onUpdatePermissions,
   onRemove,
 }: {
   member:              AccountMemberRow
   isSelf:              boolean
-  isAdmin:             boolean
   onUpdatePermissions: (input: UpdateMemberPermissionsInput) => Promise<void>
   onRemove:            () => Promise<void>
 }) {
@@ -65,7 +95,6 @@ function MemberCard({
   const [removeError,   setRemoveError]   = useState<string | null>(null)
 
   const displayName = member.display_name ?? member.email
-  const initial     = displayName[0].toUpperCase()
   const role        = member.role as Role
 
   async function handleRemove() {
@@ -84,12 +113,16 @@ function MemberCard({
     <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-sm font-semibold dark:bg-neutral-700 shrink-0">
-            {initial}
-          </span>
+          <Avatar name={displayName} />
           <div>
-            <div className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
-              {member.display_name ?? member.email}
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
+                {displayName}
+                {isSelf && <span className="ml-1 text-xs text-neutral-400">(you)</span>}
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500">
+                {ROLE_LABELS[role] ?? role}
+              </span>
             </div>
             {member.display_name && (
               <div className="text-xs text-neutral-500">{member.email}</div>
@@ -97,43 +130,36 @@ function MemberCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500">
-            {ROLE_LABELS[role] ?? role}
-          </span>
-          {isAdmin && !isSelf && role !== 'admin' && (
-            confirmRemove ? (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-neutral-500">Remove?</span>
-                <button
-                  onClick={handleRemove}
-                  disabled={removing}
-                  className="text-red-600 hover:text-red-700 font-medium"
-                >
-                  {removing ? 'Removing…' : 'Confirm'}
-                </button>
-                <button
-                  onClick={() => setConfirmRemove(false)}
-                  className="text-neutral-500 hover:text-neutral-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
+        {!isSelf && role !== 'admin' && (
+          confirmRemove ? (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-neutral-500">Remove?</span>
               <button
-                onClick={() => setConfirmRemove(true)}
-                className="text-sm text-red-500 hover:text-red-700"
+                onClick={handleRemove}
+                disabled={removing}
+                className="text-red-600 hover:text-red-700 font-medium"
               >
-                Remove
+                {removing ? 'Removing…' : 'Confirm'}
               </button>
-            )
-          )}
-        </div>
+              <button
+                onClick={() => setConfirmRemove(false)}
+                className="text-neutral-500 hover:text-neutral-700"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmRemove(true)}
+              className="text-sm text-red-500 hover:text-red-700"
+            >
+              Remove
+            </button>
+          )
+        )}
       </div>
 
-      {removeError && (
-        <p className="text-xs text-red-600">{removeError}</p>
-      )}
+      {removeError && <p className="text-xs text-red-600">{removeError}</p>}
 
       {role === 'admin' ? (
         <p className="text-xs text-neutral-400">{ROLE_DESCRIPTIONS.admin}</p>
@@ -144,35 +170,35 @@ function MemberCard({
             feature="Finance"
             value={member.finance_access}
             onChange={(v) => onUpdatePermissions({ finance_access: v })}
-            disabled={!isAdmin || !canRole(role, 'finance', 'read')}
+            disabled={!canRole(role, 'finance', 'read')}
           />
           <AccessRadio
             memberId={member.user_id}
             feature="Shopping"
             value={member.shopping_access}
             onChange={(v) => onUpdatePermissions({ shopping_access: v })}
-            disabled={!isAdmin}
+            disabled={false}
           />
           <AccessRadio
             memberId={member.user_id}
             feature="Calendar"
             value={member.calendar_access}
             onChange={(v) => onUpdatePermissions({ calendar_access: v })}
-            disabled={!isAdmin}
+            disabled={false}
           />
           <AccessRadio
             memberId={member.user_id}
             feature="Settings"
             value={member.settings_access}
             onChange={(v) => onUpdatePermissions({ settings_access: v })}
-            disabled={!isAdmin}
+            disabled={false}
           />
           <AccessRadio
             memberId={member.user_id}
             feature="AI"
             value={member.ai_access}
             onChange={(v) => onUpdatePermissions({ ai_access: v })}
-            disabled={!isAdmin}
+            disabled={false}
           />
         </div>
       )}
@@ -213,16 +239,24 @@ export default function HouseholdPage() {
 
       {!loading && (
         <div className="space-y-3">
-          {members.map((member) => (
-            <MemberCard
-              key={member.user_id}
-              member={member}
-              isSelf={member.user_id === currentUserId}
-              isAdmin={isAdmin}
-              onUpdatePermissions={(input) => updatePermissions(member.user_id, input)}
-              onRemove={() => removeMember(member.user_id)}
-            />
-          ))}
+          {isAdmin
+            ? members.map((member) => (
+                <AdminMemberCard
+                  key={member.user_id}
+                  member={member}
+                  isSelf={member.user_id === currentUserId}
+                  onUpdatePermissions={(input) => updatePermissions(member.user_id, input)}
+                  onRemove={() => removeMember(member.user_id)}
+                />
+              ))
+            : members.map((member) => (
+                <MemberRow
+                  key={member.user_id}
+                  member={member}
+                  isSelf={member.user_id === currentUserId}
+                />
+              ))
+          }
         </div>
       )}
 
@@ -233,7 +267,6 @@ export default function HouseholdPage() {
           </h2>
 
           <form onSubmit={handleInvite} className="space-y-3">
-            {/* Role selector */}
             <div className="flex gap-4">
               {INVITABLE_ROLES.map((r) => (
                 <label key={r} className="flex items-start gap-2 cursor-pointer">
@@ -257,7 +290,6 @@ export default function HouseholdPage() {
               ))}
             </div>
 
-            {/* Email + submit */}
             <div className="flex gap-2">
               <input
                 type="email"
@@ -279,7 +311,6 @@ export default function HouseholdPage() {
             {inviteSuccess && <p className="text-xs text-green-600">Invitation sent!</p>}
           </form>
 
-          {/* Pending invitations */}
           {(loadingPending || pendingInvitations.length > 0) && (
             <div>
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500">
