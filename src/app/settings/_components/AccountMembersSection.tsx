@@ -28,7 +28,7 @@ export function AccountMembersSection({
   return (
     <ul className="space-y-2">
       {members.map((m) => {
-        const isOwner = m.role === 'owner'
+        const isAdmin = m.role === 'admin'
         const isSelf  = m.user_id === currentUserId
         return (
           <li
@@ -38,18 +38,18 @@ export function AccountMembersSection({
             <span className="flex items-center gap-2">
               <span className="text-neutral-800 dark:text-neutral-200">{m.email}</span>
               <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800">
-                {m.role}
+                {m.role.charAt(0).toUpperCase() + m.role.slice(1)}
               </span>
             </span>
 
-            {!isSelf && (
+            {!isSelf && !isAdmin && (
               <button
                 type="button"
                 onClick={() => removeMember(m.user_id)}
                 className="text-xs text-red-500 hover:text-red-700 dark:text-red-400"
                 aria-label={`Remove ${m.email}`}
               >
-                {isOwner ? 'Remove' : 'Remove'}
+                Remove
               </button>
             )}
           </li>

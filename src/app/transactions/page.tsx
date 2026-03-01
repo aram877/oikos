@@ -1,16 +1,17 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import type { MonthlySummary, TransactionListRow } from '@/db/types'
-import { useTransactionList } from './_hooks/useTransactionList'
-import { useAutoCategorize } from './_hooks/useAutoCategorize'
-import { TxItem } from './_components/TxItem'
-import { FilterBar } from './_components/FilterBar'
-import { formatMonthLabel } from './_utils/month'
-import { formatEur } from './_utils/currency'
-import { ErrorBox } from '@/components/ErrorBox'
-import { StatusMsg } from '@/components/StatusMsg'
+import { useState } from "react";
+import Link from "next/link";
+import type { MonthlySummary, TransactionListRow } from "@/db/types";
+import { useTransactionList } from "./_hooks/useTransactionList";
+import { useAutoCategorize } from "./_hooks/useAutoCategorize";
+import { TxItem } from "./_components/TxItem";
+import { FilterBar } from "./_components/FilterBar";
+import { formatMonthLabel } from "./_utils/month";
+import { formatEur } from "./_utils/currency";
+import { ErrorBox } from "@/components/ErrorBox";
+import { StatusMsg } from "@/components/StatusMsg";
+import { useAbilities } from "@/hooks/useAbilities";
 
 export default function TransactionsPage() {
   const {
@@ -34,16 +35,23 @@ export default function TransactionsPage() {
     goToPrevMonth,
     goToNextMonth,
     reload,
-  } = useTransactionList()
+  } = useTransactionList();
 
-  const loaded = dbStatus === 'ready' && listStatus === 'loaded'
+  const { can, loading: abilitiesLoading } = useAbilities();
 
-  const { categorizeStatus, currentIndex, totalCount, categorizedCount, startCategorize, dismissResult } =
-    useAutoCategorize(transactions, reload)
+  const loaded = dbStatus === "ready" && listStatus === "loaded";
+
+  const {
+    categorizeStatus,
+    currentIndex,
+    totalCount,
+    categorizedCount,
+    startCategorize,
+    dismissResult,
+  } = useAutoCategorize(transactions, reload);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
-
       {/* Header */}
       <div className="mb-6">
         {/* Row 1: title + primary actions (always visible) */}
@@ -69,10 +77,10 @@ export default function TransactionsPage() {
 
         {/* Row 2: secondary actions — wrap on mobile */}
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {loaded && (
+          {!abilitiesLoading && can("ai", "write") && (
             <button
               onClick={startCategorize}
-              disabled={categorizeStatus === 'running'}
+              disabled={categorizeStatus === "running"}
               className="rounded border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               Auto-categorize
@@ -128,18 +136,21 @@ export default function TransactionsPage() {
 
       {/* Summary bar */}
       {loaded && filteredSummary !== null && (
-        <SummaryBar summary={filteredSummary} transfers={transferTransactions} />
+        <SummaryBar
+          summary={filteredSummary}
+          transfers={transferTransactions}
+        />
       )}
 
       {/* Auto-categorize progress banner */}
-      {categorizeStatus === 'running' && (
+      {categorizeStatus === "running" && (
         <p className="mb-3 rounded bg-neutral-100 px-4 py-2 text-sm text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
           Categorizing {currentIndex}/{totalCount}…
         </p>
       )}
 
       {/* Auto-categorize result banner */}
-      {categorizeStatus === 'done' && (
+      {categorizeStatus === "done" && (
         <div className="mb-3 flex items-center justify-between rounded bg-neutral-100 px-4 py-2 text-sm dark:bg-neutral-800">
           <span className="text-neutral-700 dark:text-neutral-300">
             Categorized {categorizedCount} of {totalCount}
@@ -155,24 +166,26 @@ export default function TransactionsPage() {
       )}
 
       {/* DB initialising */}
-      {dbStatus === 'initializing' && <StatusMsg>Opening database…</StatusMsg>}
+      {dbStatus === "initializing" && <StatusMsg>Opening database…</StatusMsg>}
 
       {/* DB error */}
-      {dbStatus === 'error' && (
+      {dbStatus === "error" && (
         <ErrorBox
-          message={dbError ?? 'Unknown error opening database.'}
+          message={dbError ?? "Unknown error opening database."}
           onRetry={() => window.location.reload()}
           retryLabel="Reload page"
         />
       )}
 
       {/* List loading */}
-      {dbStatus === 'ready' && listStatus === 'loading' && <StatusMsg>Loading…</StatusMsg>}
+      {dbStatus === "ready" && listStatus === "loading" && (
+        <StatusMsg>Loading…</StatusMsg>
+      )}
 
       {/* List error */}
-      {dbStatus === 'ready' && listStatus === 'error' && (
+      {dbStatus === "ready" && listStatus === "error" && (
         <ErrorBox
-          message={listError ?? 'Failed to load transactions.'}
+          message={listError ?? "Failed to load transactions."}
           onRetry={reload}
           retryLabel="Retry"
         />
@@ -186,18 +199,22 @@ export default function TransactionsPage() {
       )}
 
       {/* Empty state — transactions exist but filters hide them all */}
-      {loaded && transactions.length > 0 && filteredTransactions.length === 0 && (
-        <div className="py-16 text-center">
-          <p className="mb-3 text-sm text-neutral-500">No transactions match the current filters.</p>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="text-sm text-neutral-500 underline hover:text-neutral-800 dark:hover:text-neutral-200"
-          >
-            Clear filters
-          </button>
-        </div>
-      )}
+      {loaded &&
+        transactions.length > 0 &&
+        filteredTransactions.length === 0 && (
+          <div className="py-16 text-center">
+            <p className="mb-3 text-sm text-neutral-500">
+              No transactions match the current filters.
+            </p>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-sm text-neutral-500 underline hover:text-neutral-800 dark:hover:text-neutral-200"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
 
       {/* Transaction list */}
       {loaded && filteredTransactions.length > 0 && (
@@ -207,21 +224,20 @@ export default function TransactionsPage() {
           ))}
         </ul>
       )}
-
     </div>
-  )
+  );
 }
 
 function SummaryBar({
   summary,
   transfers,
 }: {
-  summary:   MonthlySummary
-  transfers: TransactionListRow[]
+  summary: MonthlySummary;
+  transfers: TransactionListRow[];
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
 
-  const transferTotal = transfers.reduce((sum, tx) => sum + tx.amount_cents, 0)
+  const transferTotal = transfers.reduce((sum, tx) => sum + tx.amount_cents, 0);
 
   return (
     <div className="mb-4">
@@ -244,8 +260,8 @@ function SummaryBar({
           <div
             className={`font-semibold ${
               summary.net_cents >= 0
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-red-600 dark:text-red-400'
+                ? "text-green-600 dark:text-green-400"
+                : "text-red-600 dark:text-red-400"
             }`}
           >
             {formatEur(summary.net_cents)}
@@ -257,29 +273,36 @@ function SummaryBar({
       {transfers.length > 0 && (
         <div className="mt-1">
           <button
-            onClick={() => setOpen(o => !o)}
+            onClick={() => setOpen((o) => !o)}
             className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 dark:hover:bg-neutral-900 dark:hover:text-neutral-300"
           >
             <span>
-              {transfers.length} transfer{transfers.length !== 1 ? 's' : ''} excluded
-              {' · '}
+              {transfers.length} transfer{transfers.length !== 1 ? "s" : ""}{" "}
+              excluded
+              {" · "}
               <span className="tabular-nums">{formatEur(transferTotal)}</span>
             </span>
-            <span>{open ? '▲' : '▼'}</span>
+            <span>{open ? "▲" : "▼"}</span>
           </button>
 
           {open && (
             <ul className="mt-1 divide-y divide-neutral-100 rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
-              {transfers.map(tx => (
+              {transfers.map((tx) => (
                 <li key={tx.id}>
                   <Link
                     href={`/transactions/${tx.id}`}
                     prefetch={false}
                     className="flex items-center gap-4 px-3 py-2.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900"
                   >
-                    <span className="w-24 shrink-0 tabular-nums text-neutral-400">{tx.date}</span>
-                    <span className="min-w-0 flex-1 truncate text-neutral-500">{tx.description}</span>
-                    <span className="tabular-nums text-neutral-500">{formatEur(tx.amount_cents)}</span>
+                    <span className="w-24 shrink-0 tabular-nums text-neutral-400">
+                      {tx.date}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-neutral-500">
+                      {tx.description}
+                    </span>
+                    <span className="tabular-nums text-neutral-500">
+                      {formatEur(tx.amount_cents)}
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -288,5 +311,5 @@ function SummaryBar({
         </div>
       )}
     </div>
-  )
+  );
 }

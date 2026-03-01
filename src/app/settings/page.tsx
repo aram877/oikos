@@ -15,11 +15,9 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useCategories } from './_hooks/useCategories'
 import { useAccountMembers } from './_hooks/useAccountMembers'
-import { useInvite } from './_hooks/useInvite'
 import { useMigration } from './_hooks/useMigration'
 import { CategorySection } from './_components/CategorySection'
 import { AccountMembersSection } from './_components/AccountMembersSection'
-import { InviteSection } from './_components/InviteSection'
 import { dbClient } from '@/db/db.client'
 
 type ResetStep = 'idle' | 'confirm' | 'resetting'
@@ -27,11 +25,9 @@ type ResetStep = 'idle' | 'confirm' | 'resetting'
 export default function SettingsPage() {
   const categories     = useCategories()
   const accountMembers = useAccountMembers()
-  const inviteHook     = useInvite()
   const migration      = useMigration()
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [isOwner,       setIsOwner]       = useState(false)
   const [resetStep,     setResetStep]     = useState<ResetStep>('idle')
   const [resetError,    setResetError]    = useState<string | null>(null)
   const [migrationDone, setMigrationDone] = useState(false)
@@ -46,11 +42,7 @@ export default function SettingsPage() {
       }
     })
 
-    // Check owner role
-    accountMembers.members.forEach((m) => {
-      if (m.user_id === currentUserId && m.role === 'owner') setIsOwner(true)
-    })
-  }, [accountMembers.members, currentUserId])
+  }, [currentUserId])
 
   async function handleReset() {
     setResetStep('resetting')
@@ -96,17 +88,6 @@ export default function SettingsPage() {
           />
         )}
 
-        {isOwner && (
-          <div className="mt-4">
-            <p className="mb-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
-              Invite someone
-            </p>
-            <InviteSection
-              {...inviteHook}
-              onInvited={accountMembers.refresh}
-            />
-          </div>
-        )}
       </section>
 
       {/* Categories */}
