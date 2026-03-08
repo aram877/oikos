@@ -234,3 +234,56 @@ export interface BulkInsertCalendarEventInput {
   color:       string | null
   source_uid:  string        // required for dedup
 }
+
+// ── Meal plan types ───────────────────────────────────────────────────────── //
+
+export interface MealRow {
+  id:         string
+  account_id: string
+  name:       string
+  created_at: string
+}
+
+export interface MealIngredientRow {
+  id:      string
+  meal_id: string
+  name:    string
+}
+
+/** A MealRow with its ingredients pre-joined */
+export interface MealWithIngredients extends MealRow {
+  ingredients: MealIngredientRow[]
+}
+
+export type SlotName = 'breakfast' | 'lunch' | 'dinner'
+
+export interface MealPlanSlotRow {
+  id:          string
+  account_id:  string
+  week_start:  string   // YYYY-MM-DD (always Monday)
+  day_of_week: number   // 0=Mon … 6=Sun
+  slot:        SlotName
+  meal_id:     string | null
+}
+
+/** Slot enriched with the assigned meal name (for display) */
+export interface MealPlanSlotWithMeal extends MealPlanSlotRow {
+  meal_name: string | null
+}
+
+export interface InsertMealInput {
+  name:        string
+  ingredients: string[]   // list of ingredient names
+}
+
+export interface UpdateMealInput {
+  name?:        string
+  ingredients?: string[]  // full replacement — old rows deleted, new inserted
+}
+
+export interface UpsertSlotInput {
+  week_start:  string
+  day_of_week: number
+  slot:        SlotName
+  meal_id:     string | null  // null = clear the slot
+}
