@@ -36,6 +36,11 @@ import type {
   ProfileRow,
   UpdateProfileInput,
   UpdateMemberPermissionsInput,
+  MealWithIngredients,
+  MealPlanSlotWithMeal,
+  InsertMealInput,
+  UpdateMealInput,
+  UpsertSlotInput,
 } from './types'
 
 import * as accountRepo     from './repositories/accountRepo'
@@ -44,6 +49,7 @@ import * as transactionRepo from './repositories/transactionRepo'
 import * as shoppingRepo    from './repositories/shoppingRepo'
 import * as calendarRepo    from './repositories/calendarRepo'
 import * as profileRepo     from './repositories/profileRepo'
+import * as mealPlanRepo    from './repositories/mealPlanRepo'
 import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
 import { restoreBackup }                       from './backup/restoreBackup'
 
@@ -111,6 +117,17 @@ export const dbClient = {
     get:          ():                          Promise<ProfileRow | null> => profileRepo.getProfile(),
     upsert:       (input: UpdateProfileInput): Promise<ProfileRow>        => profileRepo.upsertProfile(input),
     uploadAvatar: (file: File):               Promise<string>            => profileRepo.uploadAvatar(file),
+  },
+
+  mealPlan: {
+    listMeals:  ():                                    Promise<MealWithIngredients[]>    => mealPlanRepo.listMeals(),
+    insertMeal: (input: InsertMealInput):              Promise<MealWithIngredients>      => mealPlanRepo.insertMeal(input),
+    updateMeal: (id: string, input: UpdateMealInput):  Promise<MealWithIngredients>      => mealPlanRepo.updateMeal(id, input),
+    deleteMeal: (id: string):                          Promise<void>                     => mealPlanRepo.deleteMeal(id),
+    listSlots:  (weekStart: string):                   Promise<MealPlanSlotWithMeal[]>   => mealPlanRepo.listSlotsForWeek(weekStart),
+    upsertSlot: (input: UpsertSlotInput):              Promise<void>                     => mealPlanRepo.upsertSlot(input),
+    addWeekToShoppingList: (weekStart: string):        Promise<{ added: number; skipped: number }> =>
+      mealPlanRepo.addWeekIngredientsToShoppingList(weekStart),
   },
 
   backup: {
