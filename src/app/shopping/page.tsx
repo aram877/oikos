@@ -1,12 +1,16 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useShoppingList } from './_hooks/useShoppingList'
 import { AddItemForm }     from './_components/AddItemForm'
 import { ShoppingItem }   from './_components/ShoppingItem'
 import { useMemberNames } from '@/hooks/useMemberNames'
+import { Card, CardContent } from '@/components/ui/card'
 
 export default function ShoppingPage() {
-  const { items, status, error, rtStatus, addItem, removeItem } = useShoppingList()
+  useEffect(() => { document.title = 'Shopping | Household' }, [])
+
+  const { items, status, error, rtStatus, addItem, removeItem, reconnect } = useShoppingList()
   const memberNames = useMemberNames()
 
   return (
@@ -15,57 +19,79 @@ export default function ShoppingPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Shopping List</h1>
-        <span
-          className="flex items-center gap-1.5 text-xs text-neutral-400"
-          title={rtStatus === 'connected' ? 'Live sync active' : rtStatus === 'error' ? 'Sync error' : 'Connecting…'}
-        >
+        {rtStatus === 'error' ? (
+          <button
+            onClick={reconnect}
+            className="flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-xs text-red-800 transition-colors hover:bg-red-200 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900"
+            title="Click to retry connection"
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
+            Sync error — retry
+          </button>
+        ) : (
           <span
-            className={`inline-block h-2 w-2 rounded-full ${
+            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${
               rtStatus === 'connected'
-                ? 'bg-green-500'
-                : rtStatus === 'error'
-                ? 'bg-red-400'
-                : 'bg-yellow-400'
+                ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-400'
+                : 'bg-muted text-muted-foreground'
             }`}
-          />
-          {rtStatus === 'connected' ? 'Live' : rtStatus === 'error' ? 'Sync error' : 'Connecting'}
-        </span>
+            title={rtStatus === 'connected' ? 'Live sync active' : 'Connecting…'}
+          >
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                rtStatus === 'connected' ? 'bg-green-500' : 'bg-yellow-400'
+              }`}
+            />
+            {rtStatus === 'connected' ? 'Live' : 'Connecting'}
+          </span>
+        )}
       </div>
 
       {/* Add form */}
-      <AddItemForm onAdd={addItem} />
+      <Card className="mb-4">
+        <CardContent className="pt-4">
+          <AddItemForm onAdd={addItem} />
+        </CardContent>
+      </Card>
 
       {/* Loading */}
       {status === 'loading' && (
-        <p className="py-8 text-center text-sm text-neutral-400">Loading…</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
       )}
 
       {/* Error */}
       {status === 'error' && (
-        <p className="rounded bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+        <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error ?? 'Failed to load shopping list.'}
         </p>
       )}
 
       {/* Empty state */}
       {status === 'loaded' && items.length === 0 && (
-        <p className="py-16 text-center text-sm text-neutral-400">
-          List is empty — add your first item above
-        </p>
+        <div className="flex flex-col items-center gap-2 py-16 text-center">
+          <span className="text-4xl" aria-hidden="true">🛒</span>
+          <p className="text-sm text-muted-foreground">
+            Your list is empty — add your first item above
+          </p>
+        </div>
       )}
 
       {/* List */}
       {status === 'loaded' && items.length > 0 && (
-        <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">
-          {items.map((item) => (
-            <ShoppingItem
-              key={item.id}
-              item={item}
-              onRemove={removeItem}
-              creatorName={memberNames[item.added_by ?? ''] ?? null}
-            />
-          ))}
-        </ul>
+        <Card>
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border">
+              {items.map((item) => (
+                <ShoppingItem
+                  key={item.id}
+                  item={item}
+                  onRemove={removeItem}
+                  creatorName={memberNames[item.added_by ?? ''] ?? null}
+                />
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
     </div>

@@ -8,11 +8,12 @@ import { getSupabase } from '@/db/supabase'
 export type RealtimeStatus = 'connecting' | 'connected' | 'error'
 
 export function useShoppingList() {
-  const [items, setItems]           = useState<ShoppingItemRow[]>([])
-  const [status, setStatus]         = useState<'loading' | 'loaded' | 'error'>('loading')
-  const [error, setError]           = useState<string | null>(null)
-  const [rtStatus, setRtStatus]     = useState<RealtimeStatus>('connecting')
-  const accountIdRef                = useRef<string | null>(null)
+  const [items,        setItems]        = useState<ShoppingItemRow[]>([])
+  const [status,       setStatus]       = useState<'loading' | 'loaded' | 'error'>('loading')
+  const [error,        setError]        = useState<string | null>(null)
+  const [rtStatus,     setRtStatus]     = useState<RealtimeStatus>('connecting')
+  const [reconnectKey, setReconnectKey] = useState(0)
+  const accountIdRef                   = useRef<string | null>(null)
 
   // ── Initial load ────────────────────────────────────────────────────────── //
 
@@ -43,7 +44,6 @@ export function useShoppingList() {
   useEffect(() => {
     const supabase = getSupabase()
 
-    // Resolve account_id for channel filter
     supabase.from('account_members')
       .select('account_id')
       .order('joined_at', { ascending: true })
@@ -53,8 +53,13 @@ export function useShoppingList() {
         if (data) accountIdRef.current = data.account_id as string
       })
 
+    // Timeout: if still connecting after 10 s, mark as error
+    const timeoutId = setTimeout(() => {
+      setRtStatus((prev) => prev === 'connecting' ? 'error' : prev)
+    }, 10_000)
+
     const channel = supabase
-      .channel('shopping_items_rt')
+      .channel(`shopping_items_rt_${reconnectKey}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'shopping_items' },
@@ -75,12 +80,16 @@ export function useShoppingList() {
         },
       )
       .subscribe((s) => {
+        clearTimeout(timeoutId)
         if (s === 'SUBSCRIBED') setRtStatus('connected')
         else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') setRtStatus('error')
       })
 
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+    return () => {
+      clearTimeout(timeoutId)
+      supabase.removeChannel(channel)
+    }
+  }, [reconnectKey])
 
   // ── Mutations ────────────────────────────────────────────────────────────── //
 
@@ -99,7 +108,6 @@ export function useShoppingList() {
       const created = await dbClient.shopping.insert({ name, quantity: quantity || null })
       setItems((prev) => prev.map((i) => i.id === optimistic.id ? created : i))
     } catch (err) {
-      // Rollback on error
       setItems((prev) => prev.filter((i) => i.id !== optimistic.id))
       throw err
     }
@@ -110,9 +118,14 @@ export function useShoppingList() {
     try {
       await dbClient.shopping.delete(id)
     } catch {
-      // Realtime will handle reconciliation; silently ignore
+      // Realtime will handle reconciliation
     }
   }, [])
 
-  return { items, status, error, rtStatus, addItem, removeItem }
+  const reconnect = useCallback(() => {
+    setRtStatus('connecting')
+    setReconnectKey((k) => k + 1)
+  }, [])
+
+  return { items, status, error, rtStatus, addItem, removeItem, reconnect }
 }

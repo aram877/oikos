@@ -36,13 +36,14 @@ function overlapsMonth(event: CalendarEventRow, yearMonth: string): boolean {
 }
 
 export function useCalendar() {
-  const [view,      setView]     = useState<CalendarView>('month')
-  const [monthKey,  setMonthKey] = useState<string>(currentMonthKey)
-  const [events,    setEvents]   = useState<CalendarEventRow[]>([])
-  const [status,    setStatus]   = useState<'loading' | 'loaded' | 'error'>('loading')
-  const [error,     setError]    = useState<string | null>(null)
-  const [rtStatus,  setRtStatus] = useState<RealtimeStatus>('connecting')
-  const [modal,     setModal]    = useState<ModalState | null>(null)
+  const [view,         setView]        = useState<CalendarView>('month')
+  const [monthKey,     setMonthKey]    = useState<string>(currentMonthKey)
+  const [events,       setEvents]      = useState<CalendarEventRow[]>([])
+  const [status,       setStatus]      = useState<'loading' | 'loaded' | 'error'>('loading')
+  const [error,        setError]       = useState<string | null>(null)
+  const [rtStatus,     setRtStatus]    = useState<RealtimeStatus>('connecting')
+  const [reconnectKey, setReconnectKey] = useState(0)
+  const [modal,        setModal]       = useState<ModalState | null>(null)
 
   // ── Load events for current month ─────────────────────────────────────── //
 
@@ -70,8 +71,13 @@ export function useCalendar() {
   useEffect(() => {
     const supabase = getSupabase()
 
+    // Timeout: if still connecting after 10 s, mark as error
+    const timeoutId = setTimeout(() => {
+      setRtStatus((prev) => prev === 'connecting' ? 'error' : prev)
+    }, 10_000)
+
     const channel = supabase
-      .channel('calendar_events_rt')
+      .channel(`calendar_events_rt_${reconnectKey}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'calendar_events' },
@@ -113,13 +119,17 @@ export function useCalendar() {
         },
       )
       .subscribe((s) => {
+        clearTimeout(timeoutId)
         if (s === 'SUBSCRIBED') setRtStatus('connected')
         else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') setRtStatus('error')
       })
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      clearTimeout(timeoutId)
+      supabase.removeChannel(channel)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthKey])
+  }, [monthKey, reconnectKey])
 
   // ── Mutations ─────────────────────────────────────────────────────────── //
 
@@ -165,6 +175,11 @@ export function useCalendar() {
 
   const refresh = useCallback(() => loadEvents(monthKey), [loadEvents, monthKey])
 
+  const reconnect = useCallback(() => {
+    setRtStatus('connecting')
+    setReconnectKey((k) => k + 1)
+  }, [])
+
   return {
     view, setView,
     monthKey,
@@ -176,5 +191,6 @@ export function useCalendar() {
     addEvent, updateEvent, deleteEvent,
     goToPrevMonth, goToNextMonth,
     refresh,
+    reconnect,
   }
 }

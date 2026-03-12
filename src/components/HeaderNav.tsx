@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { MessagesNavBadge } from './MessagesNavBadge'
 
 // ── Nav structure ─────────────────────────────────────────────────────────── //
 
-type FlatLink  = { kind: 'link';  label: string; href: string }
+type FlatLink  = { kind: 'link';  label: string; href: string; badge?: boolean }
 type GroupLink = { kind: 'group'; label: string; items: { href: string; label: string }[] }
 type NavEntry  = FlatLink | GroupLink
 
@@ -28,7 +29,9 @@ const NAV: NavEntry[] = [
       { href: '/meal-library', label: 'Meal Library' },
     ],
   },
-  { kind: 'link', label: 'Calendar', href: '/calendar' },
+  { kind: 'link', label: 'Calendar',  href: '/calendar'  },
+  { kind: 'link', label: 'Messages',  href: '/messages', badge: true },
+  { kind: 'link', label: 'Household', href: '/household' },
 ]
 
 // ── Component ─────────────────────────────────────────────────────────────── //
@@ -50,7 +53,6 @@ export default function HeaderNav() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Close everything on route change
   useEffect(() => {
     setOpenGroup(null)
     setMobileOpen(false)
@@ -71,18 +73,21 @@ export default function HeaderNav() {
       <div className="hidden sm:flex items-center gap-1">
         {NAV.map((entry) => {
           if (entry.kind === 'link') {
+            const active = isActive(entry.href)
             return (
-              <Link
-                key={entry.href}
-                href={entry.href}
-                className={`rounded px-3 py-1.5 transition-colors hover:text-neutral-900 dark:hover:text-neutral-100 ${
-                  isActive(entry.href)
-                    ? 'font-medium text-neutral-900 dark:text-neutral-100'
-                    : 'text-neutral-500 dark:text-neutral-400'
-                }`}
-              >
-                {entry.label}
-              </Link>
+              <div key={entry.href} className="relative">
+                <Link
+                  href={entry.href}
+                  className={`rounded-full px-3 py-1.5 transition-all duration-150 ${
+                    active
+                      ? 'bg-muted font-medium text-foreground'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                  }`}
+                >
+                  {entry.label}
+                </Link>
+                {entry.badge && <MessagesNavBadge />}
+              </div>
             )
           }
 
@@ -93,10 +98,18 @@ export default function HeaderNav() {
             <div key={entry.label} className="relative">
               <button
                 onClick={() => setOpenGroup(open ? null : entry.label)}
-                className={`flex items-center gap-1 rounded px-3 py-1.5 transition-colors hover:text-neutral-900 dark:hover:text-neutral-100 ${
-                  active ? 'font-medium text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 dark:text-neutral-400'
+                onKeyDown={(e) => e.key === 'Escape' && setOpenGroup(null)}
+                aria-expanded={open}
+                aria-haspopup="true"
+                className={`flex items-center gap-1 rounded-full px-3 py-1.5 transition-all duration-150 ${
+                  active
+                    ? 'bg-muted font-medium text-foreground'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                 }`}
               >
+                {active && (
+                  <span className="mr-0.5 h-1.5 w-1.5 rounded-full bg-foreground/60" />
+                )}
                 {entry.label}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -109,15 +122,15 @@ export default function HeaderNav() {
               </button>
 
               {open && (
-                <div className="absolute left-0 top-full mt-1 w-44 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900 z-50">
+                <div className="absolute left-0 top-full mt-1 w-44 rounded-xl border border-border bg-card py-1 shadow-md z-50">
                   {entry.items.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`block px-4 py-2 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800 ${
+                      className={`block px-4 py-2 transition-colors hover:bg-muted ${
                         isActive(item.href)
-                          ? 'font-medium text-neutral-900 dark:text-neutral-100'
-                          : 'text-neutral-600 dark:text-neutral-300'
+                          ? 'font-medium text-foreground'
+                          : 'text-muted-foreground'
                       }`}
                     >
                       {item.label}
@@ -134,8 +147,11 @@ export default function HeaderNav() {
       <div className="sm:hidden">
         <button
           onClick={() => setMobileOpen((o) => !o)}
+          onKeyDown={(e) => e.key === 'Escape' && setMobileOpen(false)}
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-          className="flex h-8 w-8 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          aria-expanded={mobileOpen}
+          aria-haspopup="true"
+          className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
         >
           {mobileOpen ? (
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-5 w-5">
@@ -149,37 +165,40 @@ export default function HeaderNav() {
         </button>
 
         {mobileOpen && (
-          <div className="absolute left-0 top-full mt-2 w-52 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900 z-50">
+          <div role="navigation" aria-label="Main menu" className="absolute left-0 top-full mt-2 w-52 rounded-xl border border-border bg-card py-1 shadow-md z-50">
             {NAV.map((entry) => {
               if (entry.kind === 'link') {
                 return (
-                  <Link
-                    key={entry.href}
-                    href={entry.href}
-                    className={`block px-4 py-2.5 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800 ${
-                      isActive(entry.href)
-                        ? 'font-medium text-neutral-900 dark:text-neutral-100'
-                        : 'text-neutral-700 dark:text-neutral-300'
-                    }`}
-                  >
-                    {entry.label}
-                  </Link>
+                  <div key={entry.href} className="relative">
+                    <Link
+                      href={entry.href}
+                      className={`block px-4 py-2.5 transition-colors hover:bg-muted ${
+                        isActive(entry.href)
+                          ? 'font-medium text-foreground'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {entry.label}
+                    </Link>
+                    {entry.badge && <MessagesNavBadge />}
+                  </div>
                 )
               }
 
+              const groupActive = groupIsActive(entry.items)
               return (
                 <div key={entry.label}>
-                  <p className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                  <p className={`px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider ${groupActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {entry.label}
                   </p>
                   {entry.items.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`block px-6 py-2 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800 ${
+                      className={`block px-6 py-2 transition-colors hover:bg-muted ${
                         isActive(item.href)
-                          ? 'font-medium text-neutral-900 dark:text-neutral-100'
-                          : 'text-neutral-600 dark:text-neutral-300'
+                          ? 'font-medium text-foreground'
+                          : 'text-muted-foreground'
                       }`}
                     >
                       {item.label}

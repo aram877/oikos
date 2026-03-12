@@ -23,7 +23,7 @@ import type { AccessLevel } from '@/db/types'
 export const ROLES    = ['admin', 'parent', 'child'] as const
 export type  Role     = typeof ROLES[number]
 
-export const FEATURES = ['finance', 'shopping', 'calendar', 'settings', 'ai'] as const
+export const FEATURES = ['finance', 'shopping', 'calendar', 'settings', 'ai', 'messaging'] as const
 export type  Feature  = typeof FEATURES[number]
 
 export const ACTIONS  = ['read', 'write', 'delete'] as const
@@ -45,25 +45,28 @@ const NO_ACCESS   = new Set<Action>()
 
 const ROLE_CEILINGS: Record<Role, Record<Feature, AbilitySet>> = {
   admin: {
-    finance:  ALL_ACTIONS,
-    shopping: ALL_ACTIONS,
-    calendar: ALL_ACTIONS,
-    settings: ALL_ACTIONS,
-    ai:       ALL_ACTIONS,
+    finance:   ALL_ACTIONS,
+    shopping:  ALL_ACTIONS,
+    calendar:  ALL_ACTIONS,
+    settings:  ALL_ACTIONS,
+    ai:        ALL_ACTIONS,
+    messaging: ALL_ACTIONS,
   },
   parent: {
-    finance:  READ_WRITE,
-    shopping: READ_WRITE,
-    calendar: READ_WRITE,
-    settings: READ_WRITE,   // default none, but admin can grant
-    ai:       READ_WRITE,   // default none, but admin can grant
+    finance:   READ_WRITE,
+    shopping:  READ_WRITE,
+    calendar:  READ_WRITE,
+    settings:  READ_WRITE,   // default none, but admin can grant
+    ai:        READ_WRITE,   // default none, but admin can grant
+    messaging: READ_WRITE,
   },
   child: {
-    finance:  NO_ACCESS,    // strict — child never gets finance
-    shopping: READ_WRITE,
-    calendar: READ_WRITE,
-    settings: READ_WRITE,   // default none, but admin can grant
-    ai:       READ_WRITE,   // default none, but admin can grant
+    finance:   NO_ACCESS,    // strict — child never gets finance
+    shopping:  READ_WRITE,
+    calendar:  READ_WRITE,
+    settings:  READ_WRITE,   // default none, but admin can grant
+    ai:        READ_WRITE,   // default none, but admin can grant
+    messaging: READ_WRITE,
   },
 }
 
@@ -113,36 +116,40 @@ export function can(
 // Used when inserting an invitation row. Reflects the role's intended starting point.
 
 export function getDefaultAccessLevels(role: Role): {
-  finance_access:  AccessLevel
-  shopping_access: AccessLevel
-  calendar_access: AccessLevel
-  settings_access: AccessLevel
-  ai_access:       AccessLevel
+  finance_access:   AccessLevel
+  shopping_access:  AccessLevel
+  calendar_access:  AccessLevel
+  settings_access:  AccessLevel
+  ai_access:        AccessLevel
+  messaging_access: AccessLevel
 } {
   switch (role) {
     case 'admin':
       return {
-        finance_access:  'write',
-        shopping_access: 'write',
-        calendar_access: 'write',
-        settings_access: 'write',
-        ai_access:       'write',
+        finance_access:   'write',
+        shopping_access:  'write',
+        calendar_access:  'write',
+        settings_access:  'write',
+        ai_access:        'write',
+        messaging_access: 'write',
       }
     case 'parent':
       return {
-        finance_access:  'write',
-        shopping_access: 'write',
-        calendar_access: 'write',
-        settings_access: 'none',
-        ai_access:       'none',
+        finance_access:   'write',
+        shopping_access:  'write',
+        calendar_access:  'write',
+        settings_access:  'none',
+        ai_access:        'none',
+        messaging_access: 'write',
       }
     case 'child':
       return {
-        finance_access:  'none',
-        shopping_access: 'write',
-        calendar_access: 'write',
-        settings_access: 'none',
-        ai_access:       'none',
+        finance_access:   'none',
+        shopping_access:  'write',
+        calendar_access:  'write',
+        settings_access:  'none',
+        ai_access:        'none',
+        messaging_access: 'write',
       }
   }
 }

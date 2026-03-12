@@ -41,6 +41,8 @@ import type {
   InsertMealInput,
   UpdateMealInput,
   UpsertSlotInput,
+  MessageRow,
+  InsertMessageInput,
 } from './types'
 
 import * as accountRepo     from './repositories/accountRepo'
@@ -50,6 +52,7 @@ import * as shoppingRepo    from './repositories/shoppingRepo'
 import * as calendarRepo    from './repositories/calendarRepo'
 import * as profileRepo     from './repositories/profileRepo'
 import * as mealPlanRepo    from './repositories/mealPlanRepo'
+import * as messagesRepo    from './repositories/messagesRepo'
 import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
 import { restoreBackup }                       from './backup/restoreBackup'
 
@@ -128,6 +131,11 @@ export const dbClient = {
     upsertSlot: (input: UpsertSlotInput):              Promise<void>                     => mealPlanRepo.upsertSlot(input),
     addWeekToShoppingList: (weekStart: string):        Promise<{ added: number; skipped: number }> =>
       mealPlanRepo.addWeekIngredientsToShoppingList(weekStart),
+  },
+
+  messages: {
+    list:   (limit?: number):            Promise<MessageRow[]> => messagesRepo.listMessages(limit),
+    insert: (input: InsertMessageInput): Promise<MessageRow>   => messagesRepo.insertMessage(input),
   },
 
   backup: {
