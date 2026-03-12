@@ -23,8 +23,7 @@ Technical Stack:
 
 Constraints:
 
-- No bank API integration in MVP.
-- Manual entry + CSV import only.
+- Import sources: manual entry, CSV, and GoCardless Open Banking (EU banks, PSD2).
 
 ## Non-negotiables (real personal finance tool)
 

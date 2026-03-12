@@ -9,8 +9,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { BankConnect } from './_components/BankConnect'
 import {
   readFileText,
   detectSeparator,
@@ -50,7 +51,12 @@ function sepLabel(s: string) {
 // ── Component ─────────────────────────────────────────────────────────────── //
 
 export default function ImportPage() {
-  const router = useRouter()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+
+  // Switch to bank tab if returning from GoCardless redirect
+  const hasReturn = searchParams.get('tab') === 'bank'
+  const [source, setSource] = useState<'csv' | 'bank'>(hasReturn ? 'bank' : 'csv')
 
   // ── DB init ─────────────────────────────────────────────────────────────── //
   const [dbReady,   setDbReady]   = useState(false)
@@ -247,7 +253,7 @@ export default function ImportPage() {
 
   if (!dbReady) {
     return (
-      <Shell step={step}>
+      <Shell step={step} source={source} onSwitchSource={setSource}>
         <p className="py-12 text-center text-sm text-neutral-500">Opening database…</p>
       </Shell>
     )
@@ -256,7 +262,7 @@ export default function ImportPage() {
   // ── Done ─────────────────────────────────────────────────────────────────── //
   if (step === 'done') {
     return (
-      <Shell step={step}>
+      <Shell step={step} source={source} onSwitchSource={setSource}>
         <div className="flex flex-col items-center gap-4 py-12">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
             <span className="text-2xl">✓</span>
@@ -282,7 +288,7 @@ export default function ImportPage() {
     const preview  = newRows.slice(0, 25)
 
     return (
-      <Shell step={step}>
+      <Shell step={step} source={source} onSwitchSource={setSource}>
         {/* Summary chips */}
         <div className="mb-5 flex flex-wrap gap-3 text-sm">
           <Chip color="neutral">{mapResult.parsed.length} transactions parsed</Chip>
@@ -403,7 +409,7 @@ export default function ImportPage() {
       : null
 
     return (
-      <Shell step={step}>
+      <Shell step={step} source={source} onSwitchSource={setSource}>
 
         <div className="flex flex-col gap-5">
 
@@ -537,12 +543,22 @@ export default function ImportPage() {
     )
   }
 
+  // ── Bank import ───────────────────────────────────────────────────────────── //
+
+  if (source === 'bank') {
+    return (
+      <Shell step={step} source={source} onSwitchSource={setSource}>
+        <BankConnect accountId={accountId} hasReturn={hasReturn} />
+      </Shell>
+    )
+  }
+
   // ── Upload ───────────────────────────────────────────────────────────────── //
 
   const rowCount = csvPreview?.rows.length ?? 0
 
   return (
-    <Shell step={step}>
+    <Shell step={step} source={source} onSwitchSource={setSource}>
       <div className="flex flex-col gap-5">
 
         {/* Drop zone */}
@@ -687,14 +703,22 @@ export default function ImportPage() {
 
 // ── Sub-components ────────────────────────────────────────────────────────── //
 
-/** Page shell with back-link, title, and step indicator. */
-function Shell({ children, step }: { children: React.ReactNode; step: Step }) {
+/** Page shell with back-link, title, source tabs, and step indicator. */
+function Shell({
+  children, step, source, onSwitchSource,
+}: {
+  children:        React.ReactNode
+  step:            Step
+  source:          'csv' | 'bank'
+  onSwitchSource:  (s: 'csv' | 'bank') => void
+}) {
   const stepNum  = step === 'upload' ? 1 : step === 'map' ? 2 : step === 'review' ? 3 : 3
   const stepDone = step === 'done'
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
-      <div className="mb-6 flex items-center justify-between">
+      {/* Header row */}
+      <div className="mb-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
             href="/transactions"
@@ -703,12 +727,30 @@ function Shell({ children, step }: { children: React.ReactNode; step: Step }) {
           >
             ←
           </Link>
-          <h1 className="text-xl font-semibold">Import CSV</h1>
+          <h1 className="text-xl font-semibold">Import</h1>
         </div>
-        {!stepDone && (
+        {source === 'csv' && !stepDone && (
           <span className="text-sm text-neutral-400">Step {stepNum} of 3</span>
         )}
       </div>
+
+      {/* Source tabs */}
+      <div className="mb-6 flex gap-1 rounded-lg border border-neutral-200 p-1 w-fit dark:border-neutral-700">
+        {(['csv', 'bank'] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => onSwitchSource(s)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              source === s
+                ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+            }`}
+          >
+            {s === 'csv' ? 'CSV file' : 'Connect bank'}
+          </button>
+        ))}
+      </div>
+
       {children}
     </div>
   )
