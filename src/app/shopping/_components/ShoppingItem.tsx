@@ -2,49 +2,85 @@
 
 import { useState } from 'react'
 import type { ShoppingItemRow } from '@/db/types'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 interface Props {
-  item:         ShoppingItemRow
-  onRemove:     (id: string) => void
-  creatorName:  string | null
+  item:        ShoppingItemRow
+  onRemove:    (id: string) => void
+  creatorName: string | null
 }
 
 export function ShoppingItem({ item, onRemove, creatorName }: Props) {
-  const [checked, setChecked] = useState(false)
+  const [checked,       setChecked]       = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
 
   return (
-    <li className="flex items-start gap-3 py-3">
-      <input
-        type="checkbox"
+    <li className="flex items-start gap-3 px-4 py-3">
+      <Checkbox
+        id={`item-${item.id}`}
         checked={checked}
-        onChange={() => setChecked((v) => !v)}
-        className="mt-0.5 h-4 w-4 cursor-pointer rounded accent-neutral-800 dark:accent-neutral-200"
+        onCheckedChange={(v) => setChecked(!!v)}
         aria-label={`Check off ${item.name}`}
+        className="mt-0.5"
       />
       <span className="min-w-0 flex-1">
-        <span className={`text-sm${checked ? ' line-through opacity-60' : ''}`}>{item.name}</span>
+        <label
+          htmlFor={`item-${item.id}`}
+          className={`cursor-pointer text-sm transition-all duration-150 ${
+            checked ? 'text-muted-foreground line-through opacity-60' : 'text-foreground'
+          }`}
+        >
+          {item.name}
+        </label>
         {(creatorName || item.created_at) && (
-          <span className="mt-0.5 block text-xs text-neutral-400">
+          <span className="mt-0.5 block text-xs text-muted-foreground">
             Added{creatorName ? ` by ${creatorName}` : ''}{item.created_at ? ` · ${formatDate(item.created_at)}` : ''}
           </span>
         )}
+        {checked && (
+          <span className="mt-0.5 block text-xs italic text-muted-foreground/70">
+            Only visible to you
+          </span>
+        )}
       </span>
+
       {item.quantity && (
-        <span className="mt-0.5 shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+        <Badge variant="outline" className="mt-0.5 shrink-0 text-xs">
           {item.quantity}
-        </span>
+        </Badge>
       )}
-      <button
-        onClick={() => onRemove(item.id)}
-        className="shrink-0 p-1 text-neutral-300 hover:text-neutral-600 dark:text-neutral-600 dark:hover:text-neutral-300"
-        aria-label={`Remove ${item.name}`}
-      >
-        ✕
-      </button>
+
+      {confirmRemove ? (
+        <span className="mt-0.5 flex shrink-0 items-center gap-1.5 text-xs">
+          <button
+            onClick={() => onRemove(item.id)}
+            className="font-medium text-destructive transition-colors hover:text-destructive/80"
+          >
+            Remove
+          </button>
+          <button
+            onClick={() => setConfirmRemove(false)}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Cancel
+          </button>
+        </span>
+      ) : (
+        <button
+          onClick={() => setConfirmRemove(true)}
+          className="relative mt-0.5 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground after:absolute after:-inset-3"
+          aria-label={`Remove ${item.name}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.712Z" clipRule="evenodd" />
+          </svg>
+        </button>
+      )}
     </li>
   )
 }

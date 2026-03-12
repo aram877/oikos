@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { dbClient } from '@/db/db.client'
 import type { CategoryRow, TransactionListRow, MonthlySummary } from '@/db/types'
 import type { DbStatus, ListStatus } from '../_types'
@@ -72,6 +72,14 @@ export function useTransactionList() {
     if (dbStatus !== 'ready') return
     loadTransactions(monthKey)
   }, [dbStatus, monthKey, loadTransactions])
+
+  // Clear filters when the month changes (skip initial mount)
+  const isFirstMount = useRef(true)
+  useEffect(() => {
+    if (isFirstMount.current) { isFirstMount.current = false; return }
+    setSignFilter('all')
+    setSelectedCategoryIds(new Set())
+  }, [monthKey])
 
   const hasActiveFilter = signFilter !== 'all' || selectedCategoryIds.size > 0
 

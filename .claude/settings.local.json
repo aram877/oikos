@@ -9,7 +9,9 @@
       "Bash(curl:*)",
       "Bash(node node_modules/typescript/bin/tsc:*)",
       "Bash(cd:*)",
-      "Bash(cd d:/Development/my-financial-tracker)"
+      "Bash(cd d:/Development/my-financial-tracker)",
+      "Bash(cd d:/Development/my-financial-tracker && npx shadcn@latest add input card badge separator checkbox --yes 2>&1)",
+      "Bash(node:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

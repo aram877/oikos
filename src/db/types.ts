@@ -136,16 +136,17 @@ export interface ValidationResult {
 export type AccessLevel = 'none' | 'read' | 'write'
 
 export interface AccountMemberRow {
-  user_id:         string
-  email:           string
-  display_name:    string | null  // resolved via RPC (profiles join); never actually null
-  role:            'admin' | 'parent' | 'child'
-  joined_at:       string
-  finance_access:  AccessLevel
-  shopping_access: AccessLevel
-  calendar_access: AccessLevel
-  settings_access: AccessLevel
-  ai_access:       AccessLevel
+  user_id:          string
+  email:            string
+  display_name:     string | null  // resolved via RPC (profiles join); never actually null
+  role:             'admin' | 'parent' | 'child'
+  joined_at:        string
+  finance_access:   AccessLevel
+  shopping_access:  AccessLevel
+  calendar_access:  AccessLevel
+  settings_access:  AccessLevel
+  ai_access:        AccessLevel
+  messaging_access: AccessLevel
 }
 
 export interface UpdateMemberPermissionsInput {
@@ -186,6 +187,20 @@ export interface UpdateProfileInput {
   display_name?:  string | null
   date_of_birth?: string | null
   avatar_url?:    string | null
+}
+
+// ── Messages types ────────────────────────────────────────────────────────── //
+
+export interface MessageRow {
+  id:         string
+  account_id: string
+  user_id:    string
+  body:       string
+  created_at: string
+}
+
+export interface InsertMessageInput {
+  body: string
 }
 
 // ── Calendar event types ──────────────────────────────────────────────────── //

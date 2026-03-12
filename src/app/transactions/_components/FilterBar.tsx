@@ -26,7 +26,6 @@ export function FilterBar({
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!dropdownOpen) return
     function handleMouseDown(e: MouseEvent) {
@@ -59,21 +58,21 @@ export function FilterBar({
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
 
-      {/* Sign toggle */}
-      <div className="flex overflow-hidden rounded border border-neutral-200 text-sm dark:border-neutral-700">
+      {/* Sign toggle — pill group */}
+      <div className="flex gap-1 rounded-full bg-muted p-1 text-sm">
         {signOptions.map(({ value, label }) => (
           <button
             key={value}
             type="button"
             onClick={() => onSignFilterChange(value)}
-            className={`px-3 py-1.5 font-medium transition-colors ${
+            className={`rounded-full px-3 py-1 font-medium transition-all duration-150 ${
               signFilter === value
                 ? value === 'income'
-                  ? 'bg-green-600 text-white'
+                  ? 'bg-green-600 text-white shadow-sm'
                   : value === 'expense'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
-                : 'text-neutral-600 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-neutral-800'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {label}
@@ -86,46 +85,47 @@ export function FilterBar({
         <button
           type="button"
           onClick={() => setDropdownOpen((o) => !o)}
-          className={`flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
             selectedCategoryIds.size > 0
-              ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
-              : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-muted text-muted-foreground hover:text-foreground'
           }`}
         >
           {categoryLabel}
-          <span className="text-xs opacity-70">{dropdownOpen ? '▲' : '▼'}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`h-3 w-3 opacity-70 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} aria-hidden="true">
+            <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+          </svg>
         </button>
 
         {dropdownOpen && (
-          <div className="absolute left-0 top-full z-10 mt-1 max-h-64 w-56 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-neutral-200 bg-white py-1 shadow-md dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="absolute left-0 top-full z-10 mt-1 max-h-64 w-56 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-card py-1 shadow-md">
 
-            {/* Uncategorized */}
-            <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800">
+            <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted transition-colors">
               <input
                 type="checkbox"
                 checked={selectedCategoryIds.has('')}
                 onChange={() => toggleCategory('')}
-                className="h-4 w-4 rounded border-neutral-300 accent-neutral-900 dark:accent-neutral-100"
+                className="h-4 w-4 rounded border-border accent-foreground"
               />
-              <span className="text-neutral-500 dark:text-neutral-400">Uncategorized</span>
+              <span className="text-muted-foreground">Uncategorized</span>
             </label>
 
             {categories.length > 0 && (
-              <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
+              <div className="my-1 border-t border-border" />
             )}
 
             {categories.map((cat) => (
               <label
                 key={cat.id}
-                className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted transition-colors"
               >
                 <input
                   type="checkbox"
                   checked={selectedCategoryIds.has(cat.id)}
                   onChange={() => toggleCategory(cat.id)}
-                  className="h-4 w-4 shrink-0 rounded border-neutral-300 accent-neutral-900 dark:accent-neutral-100"
+                  className="h-4 w-4 shrink-0 rounded border-border accent-foreground"
                 />
-                <span className={cat.parent_id ? 'pl-3 text-neutral-600 dark:text-neutral-400' : 'font-medium'}>
+                <span className={cat.parent_id ? 'pl-3 text-muted-foreground' : 'font-medium text-foreground'}>
                   {cat.name}
                 </span>
               </label>
@@ -139,7 +139,7 @@ export function FilterBar({
         <button
           type="button"
           onClick={onClear}
-          className="rounded border border-neutral-200 px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+          className="rounded-full bg-muted px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           Clear ×
         </button>

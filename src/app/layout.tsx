@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import HeaderNav         from '@/components/HeaderNav'
 import UserMenu          from '@/components/UserMenu'
 import NotificationBell  from '@/components/NotificationBell'
+import ThemeToggle       from '@/components/ThemeToggle'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -17,7 +18,10 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Household',
+  title: {
+    template: '%s | Household',
+    default:  'Household',
+  },
   description: 'Shared household app — finances, shopping & calendar.',
 }
 
@@ -41,12 +45,17 @@ export default async function RootLayout({
     : null
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Apply saved theme before first paint to prevent flash */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})()` }} />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {user && (
-          <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+          <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 text-sm shadow-sm">
             <HeaderNav />
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <NotificationBell userId={user.id} />
               <UserMenu
                 avatarUrl={profile?.avatar_url ?? null}

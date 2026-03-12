@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { getSupabase } from '@/db/supabase'
 import { clearAccountCache } from '@/db/accountContext'
+import { Separator } from '@/components/ui/separator'
+import { relativeTime } from '@/lib/relativeTime'
 
 interface Notification {
   id:         string
@@ -14,16 +16,6 @@ interface Notification {
   data:       Record<string, string> | null
   read_at:    string | null
   created_at: string
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins  = Math.floor(diff / 60_000)
-  if (mins < 1)   return 'just now'
-  if (mins < 60)  return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
 }
 
 export default function NotificationBell({ userId }: { userId: string }) {
@@ -164,9 +156,8 @@ export default function NotificationBell({ userId }: { userId: string }) {
       <button
         onClick={() => setOpen(o => !o)}
         aria-label="Notifications"
-        className="relative flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200 transition-colors"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
       >
-        {/* Bell SVG */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
@@ -180,9 +171,8 @@ export default function NotificationBell({ userId }: { userId: string }) {
           />
         </svg>
 
-        {/* Unread badge */}
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white leading-none">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white leading-none">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -190,66 +180,78 @@ export default function NotificationBell({ userId }: { userId: string }) {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900 z-50">
-          <div className="border-b border-neutral-100 px-4 py-2.5 dark:border-neutral-800">
-            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-              Notifications
-            </span>
+        <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-border bg-card shadow-md z-50">
+          <div className="px-4 py-3">
+            <span className="text-sm font-semibold text-foreground">Notifications</span>
           </div>
+          <Separator />
 
           <ul className="max-h-96 overflow-y-auto">
             {loading && (
-              <li className="px-4 py-6 text-center text-sm text-neutral-400">
+              <li className="px-4 py-8 text-center text-sm text-muted-foreground">
                 Loading…
               </li>
             )}
 
             {!loading && items.length === 0 && (
-              <li className="px-4 py-6 text-center text-sm text-neutral-400">
-                No notifications
+              <li className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8 text-muted-foreground/40">
+                  <path fillRule="evenodd" d="M5.25 9a6.75 6.75 0 0 1 13.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 0 1-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 1 1-7.48 0 24.585 24.585 0 0 1-4.831-1.244.75.75 0 0 1-.298-1.205A8.217 8.217 0 0 0 5.25 9.75V9Zm4.502 8.9a2.25 2.25 0 1 0 4.496 0 25.057 25.057 0 0 1-4.496 0Z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-muted-foreground">You&apos;re all caught up</p>
               </li>
             )}
 
-            {items.map(n => (
-              <li
-                key={n.id}
-                className="flex items-start gap-3 px-4 py-3 border-b border-neutral-100 last:border-0 dark:border-neutral-800"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                    {n.title}
-                  </p>
-                  {n.body && (
-                    <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                      {n.body}
+            {items.map((n, i) => (
+              <li key={n.id}>
+                {i > 0 && <Separator />}
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-medium text-foreground ${!n.read_at ? 'font-semibold' : ''}`}>
+                      {n.title}
                     </p>
-                  )}
-                  <p className="mt-1 text-xs text-neutral-400">
-                    {relativeTime(n.created_at)}
-                  </p>
+                    {n.body && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {n.body}
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {relativeTime(n.created_at)}
+                    </p>
 
-                  {/* Invitation action */}
-                  {n.type === 'invitation' && n.data?.invite_token && (
-                    <Link
-                      href={`/invite/accept?token=${n.data.invite_token}`}
-                      onClick={() => setOpen(false)}
-                      className="mt-2 inline-block rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+                    {n.type === 'invitation' && n.data?.invite_token && (
+                      <Link
+                        href={`/invite/accept?token=${n.data.invite_token}`}
+                        onClick={() => setOpen(false)}
+                        className="mt-2 inline-block rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+                      >
+                        View invitation
+                      </Link>
+                    )}
+
+                    {n.type === 'message' && (
+                      <Link
+                        href="/messages"
+                        onClick={() => setOpen(false)}
+                        className="mt-2 inline-block rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+                      >
+                        View
+                      </Link>
+                    )}
+                  </div>
+
+                  {n.type !== 'invitation' && (
+                    <button
+                      onClick={() => dismiss(n.id)}
+                      aria-label="Dismiss"
+                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      View invitation
-                    </Link>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4">
+                        <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+                      </svg>
+                    </button>
                   )}
                 </div>
-
-                {/* Dismiss button */}
-                <button
-                  onClick={() => dismiss(n.id)}
-                  aria-label="Dismiss"
-                  className="shrink-0 text-neutral-300 hover:text-neutral-600 dark:text-neutral-600 dark:hover:text-neutral-300"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4">
-                    <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
-                  </svg>
-                </button>
               </li>
             ))}
           </ul>
