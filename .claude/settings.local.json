@@ -8,7 +8,8 @@
       "Bash(timeout 15 bash:*)",
       "Bash(curl:*)",
       "Bash(node node_modules/typescript/bin/tsc:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(cd d:/Development/my-financial-tracker)"
     ]
   },
   "enableAllProjectMcpServers": true,
