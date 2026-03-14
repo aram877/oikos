@@ -192,15 +192,17 @@ export interface UpdateProfileInput {
 // ── Messages types ────────────────────────────────────────────────────────── //
 
 export interface MessageRow {
-  id:         string
-  account_id: string
-  user_id:    string
-  body:       string
-  created_at: string
+  id:           string
+  account_id:   string
+  user_id:      string
+  recipient_id: string | null   // null = group message
+  body:         string
+  created_at:   string
 }
 
 export interface InsertMessageInput {
-  body: string
+  body:         string
+  recipient_id: string | null   // null = group message
 }
 
 // ── Calendar event types ──────────────────────────────────────────────────── //
