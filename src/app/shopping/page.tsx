@@ -8,7 +8,7 @@ import { useMemberNames } from '@/hooks/useMemberNames'
 import { Card, CardContent } from '@/components/ui/card'
 
 export default function ShoppingPage() {
-  useEffect(() => { document.title = 'Shopping | Household' }, [])
+  useEffect(() => { document.title = 'Shopping | Oikos' }, [])
 
   const { items, status, error, rtStatus, addItem, removeItem, reconnect } = useShoppingList()
   const memberNames = useMemberNames()

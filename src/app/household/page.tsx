@@ -305,7 +305,7 @@ function PendingInviteRow({
 // ── Page ─────────────────────────────────────────────────────────────────── //
 
 export default function HouseholdPage() {
-  useEffect(() => { document.title = 'Household | Household' }, [])
+  useEffect(() => { document.title = 'Household | Oikos' }, [])
 
   const {
     members, loading, error, isAdmin, currentUserId,

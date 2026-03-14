@@ -2,9 +2,9 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Household',
-    short_name: 'Household',
-    description: 'Shared household app — finances, shopping & calendar.',
+    name: 'Oikos',
+    short_name: 'Oikos',
+    description: 'Oikos — shared household finances, shopping & calendar.',
     start_url: '/',
     display: 'standalone',
     background_color: '#fefce8',

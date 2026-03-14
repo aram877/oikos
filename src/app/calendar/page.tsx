@@ -16,7 +16,7 @@ function formatMonthLabel(yearMonth: string): string {
 }
 
 export default function CalendarPage() {
-  useEffect(() => { document.title = 'Calendar | Household' }, [])
+  useEffect(() => { document.title = 'Calendar | Oikos' }, [])
 
   const memberNames = useMemberNames()
   const {
