@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { createClient } from '@/lib/supabase/server'
@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
 
 export const metadata: Metadata = {
   title: {
@@ -52,8 +59,6 @@ export default async function RootLayout({
         {/* Apply saved theme before first paint to prevent flash */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})()` }} />
         <meta name="theme-color" content="#a16207" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {user && (
