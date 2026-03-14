@@ -6,6 +6,7 @@ import HeaderNav         from '@/components/HeaderNav'
 import UserMenu          from '@/components/UserMenu'
 import NotificationBell  from '@/components/NotificationBell'
 import ThemeToggle       from '@/components/ThemeToggle'
+import PwaInit           from '@/components/PwaInit'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -49,6 +50,9 @@ export default async function RootLayout({
       <head>
         {/* Apply saved theme before first paint to prevent flash */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})()` }} />
+        <meta name="theme-color" content="#a16207" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {user && (
@@ -66,6 +70,7 @@ export default async function RootLayout({
           </header>
         )}
         {children}
+        <PwaInit />
       </body>
     </html>
   )
