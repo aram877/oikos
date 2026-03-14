@@ -8,7 +8,28 @@ import { getActiveAccountId } from '@/db/accountContext'
 
 export type RealtimeStatus = 'connecting' | 'connected' | 'error'
 
-export function useMessages() {
+function lastSeenKey(conversationId: 'group' | string): string {
+  return conversationId === 'group'
+    ? 'msgs_last_seen_group'
+    : `msgs_last_seen_dm_${conversationId}`
+}
+
+function belongsToConversation(
+  msg: MessageRow,
+  conversationId: 'group' | string,
+  currentUserId: string | null,
+): boolean {
+  if (conversationId === 'group') {
+    return msg.recipient_id === null
+  }
+  // DM: either direction between current user and partner
+  return (
+    (msg.user_id === currentUserId && msg.recipient_id === conversationId) ||
+    (msg.user_id === conversationId && msg.recipient_id === currentUserId)
+  )
+}
+
+export function useMessages(conversationId: 'group' | string) {
   const [messages,     setMessages]     = useState<MessageRow[]>([])
   const [status,       setStatus]       = useState<'loading' | 'loaded' | 'error'>('loading')
   const [error,        setError]        = useState<string | null>(null)
@@ -16,29 +37,34 @@ export function useMessages() {
   const [reconnectKey, setReconnectKey] = useState(0)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const accountIdRef                    = useRef<string | null>(null)
+  const currentUserIdRef                = useRef<string | null>(null)
 
   // ── Resolve current user on mount ────────────────────────────────────────── //
 
   useEffect(() => {
     getSupabase().auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id ?? null)
+      currentUserIdRef.current = data.user?.id ?? null
     })
   }, [])
 
   // ── Mark last-seen on mount ───────────────────────────────────────────────── //
 
   useEffect(() => {
-    localStorage.setItem('msgs_last_seen', new Date().toISOString())
-  }, [])
+    localStorage.setItem(lastSeenKey(conversationId), new Date().toISOString())
+  }, [conversationId])
 
   // ── Initial load ─────────────────────────────────────────────────────────── //
 
   useEffect(() => {
     let cancelled = false
+    setStatus('loading')
+    setMessages([])
 
     async function load() {
       try {
-        const rows = await dbClient.messages.list()
+        const recipientId = conversationId === 'group' ? null : conversationId
+        const rows = await dbClient.messages.list({ recipientId })
         if (!cancelled) {
           setMessages(rows)
           setStatus('loaded')
@@ -53,7 +79,7 @@ export function useMessages() {
 
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [conversationId])
 
   // ── Realtime subscription ─────────────────────────────────────────────────── //
 
@@ -68,12 +94,14 @@ export function useMessages() {
     }, 10_000)
 
     const channel = supabase
-      .channel(`messages_rt_${reconnectKey}`)
+      .channel(`messages_rt_${conversationId}_${reconnectKey}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const newMsg = payload.new as MessageRow
+          // Only append if it belongs to this conversation
+          if (!belongsToConversation(newMsg, conversationId, currentUserIdRef.current)) return
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMsg.id)) return prev
             return [...prev, newMsg]
@@ -90,34 +118,32 @@ export function useMessages() {
       clearTimeout(timeoutId)
       supabase.removeChannel(channel)
     }
-  }, [reconnectKey])
+  }, [reconnectKey, conversationId])
 
   // ── Mutations ─────────────────────────────────────────────────────────────── //
 
   const send = useCallback(async (body: string) => {
+    const recipientId = conversationId === 'group' ? null : conversationId
+
     const optimistic: MessageRow = {
-      id:         `optimistic-${Date.now()}`,
-      account_id: accountIdRef.current ?? '',
-      user_id:    '', // filled after auth check
+      id:           `optimistic-${Date.now()}`,
+      account_id:   accountIdRef.current ?? '',
+      user_id:      currentUserIdRef.current ?? '',
+      recipient_id: recipientId,
       body,
       created_at: new Date().toISOString(),
     }
 
-    // Get current user id for optimistic render
-    const { data: userData } = await getSupabase().auth.getUser()
-    const userId = userData.user?.id ?? ''
-    optimistic.user_id = userId
-
     setMessages((prev) => [...prev, optimistic])
 
     try {
-      const created = await dbClient.messages.insert({ body })
+      const created = await dbClient.messages.insert({ body, recipient_id: recipientId })
       setMessages((prev) => prev.map((m) => m.id === optimistic.id ? created : m))
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
       throw err
     }
-  }, [])
+  }, [conversationId])
 
   const reconnect = useCallback(() => {
     setRtStatus('connecting')

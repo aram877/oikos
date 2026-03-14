@@ -44,6 +44,7 @@ import type {
   MessageRow,
   InsertMessageInput,
 } from './types'
+import type { ListMessagesOptions, ConversationPreview } from './repositories/messagesRepo'
 
 import * as accountRepo     from './repositories/accountRepo'
 import * as categoryRepo    from './repositories/categoryRepo'
@@ -134,8 +135,9 @@ export const dbClient = {
   },
 
   messages: {
-    list:   (limit?: number):            Promise<MessageRow[]> => messagesRepo.listMessages(limit),
-    insert: (input: InsertMessageInput): Promise<MessageRow>   => messagesRepo.insertMessage(input),
+    list:     (options: ListMessagesOptions): Promise<MessageRow[]>          => messagesRepo.listMessages(options),
+    insert:   (input: InsertMessageInput):    Promise<MessageRow>            => messagesRepo.insertMessage(input),
+    previews: (partnerIds: string[]):         Promise<ConversationPreview[]> => messagesRepo.listConversationPreviews(partnerIds),
   },
 
   backup: {

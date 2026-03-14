@@ -5,16 +5,29 @@ import { usePathname } from 'next/navigation'
 import { getSupabase } from '@/db/supabase'
 import { getActiveAccountId } from '@/db/accountContext'
 
+/** Returns the oldest last-seen timestamp across all conversation keys, or epoch if none. */
+function getOldestLastSeen(): string {
+  if (typeof window === 'undefined') return new Date(0).toISOString()
+  let oldest: string | null = null
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (!key?.startsWith('msgs_last_seen')) continue
+    const val = localStorage.getItem(key)
+    if (!val) continue
+    if (oldest === null || val < oldest) oldest = val
+  }
+  return oldest ?? new Date(0).toISOString()
+}
+
 export function MessagesNavBadge() {
   const [count,   setCount]   = useState(0)
   const pathname              = usePathname()
   const accountIdRef          = useRef<string | null>(null)
 
-  // Reset count when on messages page
+  // Reset count when on any messages page
   useEffect(() => {
-    if (pathname === '/messages') {
+    if (pathname.startsWith('/messages')) {
       setCount(0)
-      localStorage.setItem('msgs_last_seen', new Date().toISOString())
     }
   }, [pathname])
 
@@ -25,19 +38,29 @@ export function MessagesNavBadge() {
 
     async function loadCount() {
       try {
-        const accountId = await getActiveAccountId()
+        const [accountId, { data: userData }] = await Promise.all([
+          getActiveAccountId(),
+          supabase.auth.getUser(),
+        ])
         if (cancelled) return
         accountIdRef.current = accountId
 
-        const lastSeen = localStorage.getItem('msgs_last_seen') ?? new Date(0).toISOString()
+        const currentUserId = userData.user?.id
+        const lastSeen = getOldestLastSeen()
 
-        const { count: unread } = await supabase
+        let query = supabase
           .from('messages')
           .select('id', { count: 'exact', head: true })
           .eq('account_id', accountId)
           .gt('created_at', lastSeen)
 
-        if (!cancelled && pathname !== '/messages') {
+        if (currentUserId) {
+          query = query.neq('user_id', currentUserId)
+        }
+
+        const { count: unread } = await query
+
+        if (!cancelled && !pathname.startsWith('/messages')) {
           setCount(unread ?? 0)
         }
       } catch {
@@ -52,12 +75,12 @@ export function MessagesNavBadge() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        () => {
-          if (pathname !== '/messages') {
-            setCount((c) => c + 1)
-          } else {
-            localStorage.setItem('msgs_last_seen', new Date().toISOString())
+        (payload) => {
+          if (pathname.startsWith('/messages')) {
+            // Already viewing messages — don't increment
+            return
           }
+          setCount((c) => c + 1)
         },
       )
       .subscribe()
