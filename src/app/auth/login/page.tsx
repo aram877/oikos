@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import OikosLogo from '@/components/OikosLogo'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -36,6 +37,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 dark:bg-neutral-950">
       <div className="w-full max-w-sm">
+        <div className="mb-8 flex justify-center">
+          <OikosLogo size={40} />
+        </div>
         <h1 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
           Sign in
         </h1>

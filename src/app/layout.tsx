@@ -7,6 +7,7 @@ import UserMenu          from '@/components/UserMenu'
 import NotificationBell  from '@/components/NotificationBell'
 import ThemeToggle       from '@/components/ThemeToggle'
 import PwaInit           from '@/components/PwaInit'
+import OikosLogo         from '@/components/OikosLogo'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -57,7 +58,10 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {user && (
           <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 text-sm shadow-sm">
-            <HeaderNav />
+            <div className="flex items-center gap-4">
+              <OikosLogo linked />
+              <HeaderNav />
+            </div>
             <div className="flex items-center gap-3">
               <ThemeToggle />
               <NotificationBell userId={user.id} />
