@@ -5,7 +5,8 @@ ALTER TABLE public.messages
   ADD COLUMN IF NOT EXISTS recipient_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;
 
 -- Update RLS: members can read group messages and their own DMs
-DROP POLICY IF EXISTS "account members read messages" ON public.messages;
+DROP POLICY IF EXISTS "account members read messages"                ON public.messages;
+DROP POLICY IF EXISTS "messages: members can read group and own DMs" ON public.messages;
 CREATE POLICY "messages: members can read group and own DMs"
   ON public.messages FOR SELECT
   USING (
@@ -20,8 +21,10 @@ CREATE POLICY "messages: members can read group and own DMs"
     )
   );
 
--- Update RLS: members can insert their own messages (group or DM to another member)
-DROP POLICY IF EXISTS "account members insert own messages" ON public.messages;
+-- Update RLS: members can insert their own messages (group or DM)
+-- Note: no recipient membership check needed — the SELECT policy enforces DM visibility
+DROP POLICY IF EXISTS "account members insert own messages"       ON public.messages;
+DROP POLICY IF EXISTS "messages: members can insert own messages" ON public.messages;
 CREATE POLICY "messages: members can insert own messages"
   ON public.messages FOR INSERT
   WITH CHECK (
@@ -29,13 +32,6 @@ CREATE POLICY "messages: members can insert own messages"
     AND EXISTS (
       SELECT 1 FROM public.account_members
       WHERE account_id = messages.account_id AND user_id = auth.uid()
-    )
-    AND (
-      recipient_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM public.account_members
-        WHERE account_id = messages.account_id AND user_id = messages.recipient_id
-      )
     )
   );
 
