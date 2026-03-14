@@ -94,4 +94,10 @@ html.dark {
     @apply bg-background text-foreground;
     font-family: var(--font-geist-sans), system-ui, sans-serif;
   }
+  /* Prevent iOS Safari from auto-zooming on input focus (triggers when font-size < 16px) */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
