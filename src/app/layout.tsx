@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | Household',
-    default:  'Household',
+    template: '%s | Oikos',
+    default:  'Oikos',
   },
   description: 'Shared household app — finances, shopping & calendar.',
 }

@@ -7,7 +7,7 @@ import { MessageInput } from './_components/MessageInput'
 import { useMemberProfiles } from '@/hooks/useMemberNames'
 
 export default function MessagesPage() {
-  useEffect(() => { document.title = 'Messages | Household' }, [])
+  useEffect(() => { document.title = 'Messages | Oikos' }, [])
 
   const { messages, status, error, rtStatus, currentUserId, send, reconnect } = useMessages()
   const { profiles } = useMemberProfiles()

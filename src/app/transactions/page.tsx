@@ -42,7 +42,7 @@ export default function TransactionsPage() {
 
   const { can, loading: abilitiesLoading } = useAbilities();
 
-  useEffect(() => { document.title = 'Transactions | Household' }, [])
+  useEffect(() => { document.title = 'Transactions | Oikos' }, [])
 
   const loaded = dbStatus === "ready" && listStatus === "loaded";
 
