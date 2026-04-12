@@ -1,8 +1,9 @@
 import type { AnalystReport } from './analyst'
 
-const OLLAMA_URL      = 'http://localhost:11434/api/generate'
-const OLLAMA_MODEL    = 'gemma4:e4b'
-const OLLAMA_TIMEOUT  = 60_000
+const OLLAMA_BASE    = process.env.OLLAMA_URL ?? 'http://localhost:11434'
+const OLLAMA_URL     = `${OLLAMA_BASE}/api/generate`
+const OLLAMA_MODEL   = process.env.OLLAMA_MODEL ?? 'gemma4:e4b'
+const OLLAMA_TIMEOUT = Number(process.env.OLLAMA_TIMEOUT_ANALYZE ?? 60_000)
 
 const eurFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 const eur = (cents: number) => eurFmt.format(cents / 100)
@@ -53,13 +54,19 @@ export async function analyzeWithAI(report: AnalystReport): Promise<string> {
       signal: controller.signal,
     })
 
-    if (!res.ok) throw new Error(`Ollama returned ${res.status}`)
+    if (!res.ok) throw new Error(`Ollama unavailable — is it running at ${OLLAMA_BASE}?`)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const json: any = await res.json()
     const text: string = typeof json?.response === 'string' ? json.response.trim() : ''
     if (!text) throw new Error('Empty response from model')
     return text
+  } catch (err) {
+    // Wrap network errors (ECONNREFUSED, AbortError) with a friendly message
+    if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('fetch'))) {
+      throw new Error(`Ollama unavailable — is it running at ${OLLAMA_BASE}?`)
+    }
+    throw err
   } finally {
     clearTimeout(timer)
   }
