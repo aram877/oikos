@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { dbClient } from '@/db/db.client'
 import { buildReport } from '@/lib/analyst'
 import { analyzeWithAI } from '@/lib/analyzeWithAI'
+import { useAiConfig } from '@/lib/aiConfig'
 import type { AnalystReport } from '@/lib/analyst'
 
 export function useAnalyst(): {
@@ -23,6 +24,8 @@ export function useAnalyst(): {
   const [aiInsights, setAiInsights] = useState<string | null>(null)
   const [aiStatus,   setAiStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [aiError,    setAiError]    = useState<string | null>(null)
+
+  const { config: aiConfig } = useAiConfig()
 
   const generate = useCallback((months: number) => {
     setStatus('loading')
@@ -66,10 +69,10 @@ export function useAnalyst(): {
     if (!report) return
     setAiStatus('loading')
     setAiError(null)
-    analyzeWithAI(report)
+    analyzeWithAI(report, aiConfig)
       .then(text => { setAiInsights(text); setAiStatus('done') })
       .catch(err  => { setAiError(err instanceof Error ? err.message : String(err)); setAiStatus('error') })
-  }, [report])
+  }, [report, aiConfig])
 
   return { status, error, report, generate, aiInsights, aiStatus, aiError, generateInsights }
 }
