@@ -4,13 +4,15 @@ import type { TransactionListRow, CategorizationRuleRow } from '@/db/types'
 import { categorizeWithOllama } from '@/lib/categorize'
 import type { CategorizeStatus } from '../_types'
 
-function matchRule(rules: CategorizationRuleRow[], tx: TransactionListRow): string | null {
+type RuleMatch = { categoryId: string; note: string | null }
+
+function matchRule(rules: CategorizationRuleRow[], tx: TransactionListRow): RuleMatch | null {
   const abs = Math.abs(tx.amount_cents)
   for (const rule of rules) {
     const descMatch = tx.description.toLowerCase().includes(rule.description_contains.toLowerCase())
     const minOk     = rule.amount_min_cents === null || abs >= rule.amount_min_cents
     const maxOk     = rule.amount_max_cents === null || abs <= rule.amount_max_cents
-    if (descMatch && minOk && maxOk) return rule.category_id
+    if (descMatch && minOk && maxOk) return { categoryId: rule.category_id, note: rule.note }
   }
   return null
 }
@@ -89,7 +91,9 @@ export function useAutoCategorize(
 
         try {
           // 0. Check rules first (instant, no AI needed).
-          let categoryId = matchRule(rules, tx) ?? undefined
+          const ruleMatch = matchRule(rules, tx)
+          let categoryId  = ruleMatch?.categoryId
+          let ruleNote    = ruleMatch?.note ?? null
 
           if (categoryId === undefined) {
             // 1. Check DB history.
@@ -112,7 +116,10 @@ export function useAutoCategorize(
 
           // 3. Apply if a category was found.
           if (categoryId !== undefined) {
-            await dbClient.transactions.update(tx.id, { category_id: categoryId })
+            await dbClient.transactions.update(tx.id, {
+              category_id: categoryId,
+              ...(ruleNote !== null ? { notes: ruleNote } : {}),
+            })
             applied++
           }
         } catch {
