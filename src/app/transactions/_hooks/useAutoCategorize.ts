@@ -5,10 +5,12 @@ import { categorizeWithOllama } from '@/lib/categorize'
 import type { CategorizeStatus } from '../_types'
 
 function matchRule(rules: CategorizationRuleRow[], tx: TransactionListRow): string | null {
+  const abs = Math.abs(tx.amount_cents)
   for (const rule of rules) {
-    const descMatch   = tx.description.toLowerCase().includes(rule.description_contains.toLowerCase())
-    const amountMatch = rule.amount_cents === null || Math.abs(tx.amount_cents) === rule.amount_cents
-    if (descMatch && amountMatch) return rule.category_id
+    const descMatch = tx.description.toLowerCase().includes(rule.description_contains.toLowerCase())
+    const minOk     = rule.amount_min_cents === null || abs >= rule.amount_min_cents
+    const maxOk     = rule.amount_max_cents === null || abs <= rule.amount_max_cents
+    if (descMatch && minOk && maxOk) return rule.category_id
   }
   return null
 }

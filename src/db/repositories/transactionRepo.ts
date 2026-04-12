@@ -252,6 +252,25 @@ export async function getMonthlySummary(
 // ── Import helpers ────────────────────────────────────────────────────────── //
 
 /**
+ * Returns all active non-transfer transactions for the account.
+ * Used by the rules re-categorize feature.
+ */
+export async function listAllActive(accountId?: string): Promise<TransactionListRow[]> {
+  const resolvedAccountId = accountId ?? await getActiveAccountId()
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select(TX_SELECT)
+    .eq('account_id', resolvedAccountId)
+    .is('deleted_at', null)
+    .order('date', { ascending: false })
+
+  if (error) throw new Error(`[transactionRepo.listAllActive] ${error.message}`)
+  return ((data ?? []) as unknown as SupabaseTxRow[]).map(flattenTransactionListRow)
+}
+
+/**
  * Returns all active uncategorized transactions for the account.
  * Used by the global auto-categorize feature.
  */

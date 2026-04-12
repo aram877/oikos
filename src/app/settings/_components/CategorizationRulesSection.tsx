@@ -2,25 +2,32 @@
 
 import { useState } from 'react'
 import type { CategoryRow, CategorizationRuleRow } from '@/db/types'
+import type { RecatStatus } from '../_hooks/useCategorizationRules'
 
 const eurFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 function formatEur(cents: number) { return eurFmt.format(cents / 100) }
 
 interface Props {
-  rules:      CategorizationRuleRow[]
-  categories: CategoryRow[]
-  loading:    boolean
-  error:      string | null
-  addRule:    (input: { description_contains: string; amount_cents: number | null; category_id: string }) => Promise<void>
-  removeRule: (id: string) => Promise<void>
+  rules:        CategorizationRuleRow[]
+  categories:   CategoryRow[]
+  loading:      boolean
+  error:        string | null
+  addRule:      (input: { description_contains: string; amount_min_cents: number | null; amount_max_cents: number | null; category_id: string }) => Promise<void>
+  removeRule:   (id: string) => Promise<void>
+  recategorize: () => Promise<void>
+  recatStatus:  RecatStatus
+  recatCurrent: number
+  recatTotal:   number
+  recatApplied: number
 }
 
-export function CategorizationRulesSection({ rules, categories, loading, error, addRule, removeRule }: Props) {
-  const [desc,       setDesc]       = useState('')
-  const [amount,     setAmount]     = useState('')
+export function CategorizationRulesSection({ rules, categories, loading, error, addRule, removeRule, recategorize, recatStatus, recatCurrent, recatTotal, recatApplied }: Props) {
+  const [desc,      setDesc]      = useState('')
+  const [amountMin, setAmountMin] = useState('')
+  const [amountMax, setAmountMax] = useState('')
   const [categoryId, setCategoryId] = useState('')
-  const [saving,     setSaving]     = useState(false)
-  const [saveError,  setSaveError]  = useState<string | null>(null)
+  const [saving,    setSaving]    = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const activeCategories = categories.filter(c => !c.deleted_at)
@@ -31,16 +38,20 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
     setSaving(true)
     setSaveError(null)
     try {
-      const amountCents = amount.trim()
-        ? Math.round(parseFloat(amount.replace(',', '.')) * 100)
-        : null
+      function parseCents(s: string): number | null {
+        if (!s.trim()) return null
+        const v = Math.round(parseFloat(s.replace(',', '.')) * 100)
+        return isNaN(v) ? null : v
+      }
       await addRule({
         description_contains: desc.trim(),
-        amount_cents:         isNaN(amountCents!) ? null : amountCents,
+        amount_min_cents:     parseCents(amountMin),
+        amount_max_cents:     parseCents(amountMax),
         category_id:          categoryId,
       })
       setDesc('')
-      setAmount('')
+      setAmountMin('')
+      setAmountMax('')
       setCategoryId('')
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err))
@@ -79,9 +90,16 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
                 <span className="font-medium text-neutral-800 dark:text-neutral-200">
                   {rule.description_contains}
                 </span>
-                {rule.amount_cents !== null && (
+                {(rule.amount_min_cents !== null || rule.amount_max_cents !== null) && (
                   <span className="ml-2 text-neutral-400">
-                    + {formatEur(rule.amount_cents)}
+                    {rule.amount_min_cents !== null && rule.amount_max_cents !== null && rule.amount_min_cents === rule.amount_max_cents
+                      ? `= ${formatEur(rule.amount_min_cents)}`
+                      : rule.amount_min_cents !== null && rule.amount_max_cents !== null
+                        ? `${formatEur(rule.amount_min_cents)} – ${formatEur(rule.amount_max_cents)}`
+                        : rule.amount_min_cents !== null
+                          ? `≥ ${formatEur(rule.amount_min_cents)}`
+                          : `≤ ${formatEur(rule.amount_max_cents!)}`
+                    }
                   </span>
                 )}
                 <span className="mx-2 text-neutral-300 dark:text-neutral-600">→</span>
@@ -104,7 +122,7 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
       {/* Add form */}
       <form onSubmit={handleAdd} className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
-          <div className="col-span-2">
+          <div className="col-span-2 sm:col-span-2">
             <input
               type="text"
               placeholder="Description contains…"
@@ -117,9 +135,17 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
           <input
             type="text"
             inputMode="decimal"
-            placeholder="Amount (optional)"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
+            placeholder="Min amount (≥)"
+            value={amountMin}
+            onChange={e => setAmountMin(e.target.value)}
+            className="rounded border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          />
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="Max amount (≤)"
+            value={amountMax}
+            onChange={e => setAmountMax(e.target.value)}
             className="rounded border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
           <select
@@ -147,6 +173,35 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
           {saving ? 'Adding…' : 'Add rule'}
         </button>
       </form>
+
+      {/* Re-categorize */}
+      {rules.length > 0 && (
+        <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={recategorize}
+              disabled={recatStatus === 'running'}
+              className="rounded border border-neutral-300 px-4 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              {recatStatus === 'running' ? 'Running…' : 'Re-categorize all'}
+            </button>
+            {recatStatus === 'running' && (
+              <span className="text-xs text-neutral-400">{recatCurrent} / {recatTotal}</span>
+            )}
+            {recatStatus === 'done' && (
+              <span className="text-xs text-neutral-500">
+                Done — {recatApplied} transaction{recatApplied !== 1 ? 's' : ''} updated
+              </span>
+            )}
+          </div>
+          {recatStatus === 'idle' && (
+            <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">
+              Applies current rules to all existing transactions, overriding their category if a rule matches.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
