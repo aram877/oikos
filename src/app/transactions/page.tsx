@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { MonthlySummary, TransactionListRow } from "@/db/types";
 import { useTransactionList } from "./_hooks/useTransactionList";
+import type { SortKey, SortDir } from "./_hooks/useTransactionList";
 import { useAutoCategorize } from "./_hooks/useAutoCategorize";
 import { TxItem } from "./_components/TxItem";
 import { FilterBar } from "./_components/FilterBar";
@@ -30,6 +31,9 @@ export default function TransactionsPage() {
     setSignFilter,
     selectedCategoryIds,
     setSelectedCategoryIds,
+    sortKey,
+    sortDir,
+    setSort,
     transferTransactions,
     filteredTransactions,
     filteredSummary,
@@ -233,18 +237,72 @@ export default function TransactionsPage() {
 
       {/* Transaction list */}
       {loaded && filteredTransactions.length > 0 && (
-        <Card>
-          <CardContent className="p-0">
-            <ul className="divide-y divide-border">
-              {filteredTransactions.map((tx) => (
-                <TxItem key={tx.id} tx={tx} />
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <>
+          <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {filteredTransactions.map((tx) => (
+                  <TxItem key={tx.id} tx={tx} />
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );
+}
+
+function SortHeader({
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  sortKey: SortKey
+  sortDir: SortDir
+  onSort: (key: SortKey, dir: SortDir) => void
+}) {
+  function handleClick(key: SortKey, defaultDir: SortDir) {
+    if (sortKey === key) {
+      onSort(key, sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      onSort(key, defaultDir)
+    }
+  }
+
+  function Arrow({ col }: { col: SortKey }) {
+    if (sortKey !== col) return <span className="opacity-0">↓</span>
+    return <span>{sortDir === 'desc' ? '↓' : '↑'}</span>
+  }
+
+  const base = "flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors select-none cursor-pointer"
+
+  return (
+    <div className="flex items-center gap-2 px-4 pb-1 text-xs">
+      <button
+        type="button"
+        onClick={() => handleClick('date', 'desc')}
+        className={`${base} w-24 shrink-0`}
+      >
+        Date <Arrow col="date" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleClick('description', 'asc')}
+        className={`${base} flex-1 min-w-0`}
+      >
+        Description <Arrow col="description" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleClick('amount', 'desc')}
+        className={`${base} shrink-0`}
+      >
+        Amount <Arrow col="amount" />
+      </button>
+    </div>
+  )
 }
 
 function SummaryBar({
