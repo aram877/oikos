@@ -5,6 +5,7 @@ import type {
   UpdateTransactionInput,
   MonthlySummary,
   MonthlySummaryRow,
+  AccountBalance,
 } from '../types'
 import { getSupabase } from '../supabase'
 import { getActiveAccountId } from '../accountContext'
@@ -246,6 +247,30 @@ export async function getMonthlySummary(
       income_cents:  Number(r.income_cents),
       expense_cents: Number(r.expense_cents),
     })),
+  }
+}
+
+// ── Account balance ───────────────────────────────────────────────────────── //
+
+/**
+ * Returns a balance breakdown for the account based on all recorded transactions.
+ * See get_account_balance SQL function for full documentation.
+ */
+export async function getAccountBalance(accountId?: string): Promise<AccountBalance> {
+  const resolvedAccountId = accountId ?? await getActiveAccountId()
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase.rpc('get_account_balance', {
+    p_account_id: resolvedAccountId,
+  })
+
+  if (error) throw new Error(`[transactionRepo.getAccountBalance] ${error.message}`)
+
+  const row = (data as { cashflow_cents: number; transfers_cents: number; balance_cents: number }[])?.[0]
+  return {
+    cashflow_cents:  Number(row?.cashflow_cents  ?? 0),
+    transfers_cents: Number(row?.transfers_cents ?? 0),
+    balance_cents:   Number(row?.balance_cents   ?? 0),
   }
 }
 
