@@ -90,6 +90,9 @@ export default function TransactionsPage() {
               Auto-categorize
             </Button>
           )}
+          <Link href="/yearly" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+            Yearly
+          </Link>
           <Link href="/analyst" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
             Analyst
           </Link>

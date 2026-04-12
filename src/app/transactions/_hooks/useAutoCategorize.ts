@@ -14,7 +14,7 @@ function matchRule(rules: CategorizationRuleRow[], tx: TransactionListRow): stri
 }
 
 export function useAutoCategorize(
-  transactions: TransactionListRow[],
+  transactions: TransactionListRow[] | null,  // null = fetch all uncategorized globally
   reload: () => void,
 ): {
   categorizeStatus: CategorizeStatus
@@ -35,12 +35,17 @@ export function useAutoCategorize(
     if (runningRef.current) return
     runningRef.current = true
 
-    const uncategorized = transactions.filter(tx => tx.category_id === null)
-
     setCategorizeStatus('running')
-    setTotalCount(uncategorized.length)
+    setTotalCount(0)
     setCurrentIndex(0)
     setCategorizedCount(0)
+
+    await dbClient.init()
+    const uncategorized = transactions === null
+      ? await dbClient.transactions.listUncategorized()
+      : transactions.filter(tx => tx.category_id === null)
+
+    setTotalCount(uncategorized.length)
 
     let applied = 0
 
