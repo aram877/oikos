@@ -52,6 +52,7 @@ migrations=(
 
   # 2026-04-12 — categorization rules
   "supabase/add_categorization_rules.sql"
+  "supabase/alter_categorization_rules_amount_range.sql"
 )
 
 {

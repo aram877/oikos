@@ -311,13 +311,15 @@ export interface CategorizationRuleRow {
   id:                   string
   account_id:           string
   description_contains: string
-  amount_cents:         number | null  // null = match any amount
+  amount_min_cents:     number | null  // null = no lower bound  (|amount| >= min)
+  amount_max_cents:     number | null  // null = no upper bound  (|amount| <= max)
   category_id:          string
   created_at:           string
 }
 
 export interface InsertCategorizationRuleInput {
   description_contains: string
-  amount_cents:         number | null
+  amount_min_cents:     number | null
+  amount_max_cents:     number | null
   category_id:          string
 }
