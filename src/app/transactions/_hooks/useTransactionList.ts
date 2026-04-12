@@ -4,6 +4,12 @@ import type { CategoryRow, TransactionListRow, MonthlySummary } from '@/db/types
 import type { DbStatus, ListStatus } from '../_types'
 import { currentMonthKey, prevMonthKey, nextMonthKey } from '../_utils/month'
 
+// Module-level cache — persists across React renders and route navigations.
+// Past months are immutable so they can be cached indefinitely.
+// The current month is never cached (transactions may have just been added).
+type MonthCacheEntry = { transactions: TransactionListRow[]; summary: MonthlySummary }
+const monthCache = new Map<string, MonthCacheEntry>()
+
 export type SignFilter = 'all' | 'income' | 'expense'
 export type SortKey = 'date' | 'description' | 'amount'
 export type SortDir = 'asc' | 'desc'
@@ -87,7 +93,21 @@ export function useTransactionList() {
     dbClient.categories.list().then(setCategories).catch(() => {})
   }, [dbStatus])
 
-  const loadTransactions = useCallback(async (mk: string) => {
+  const loadTransactions = useCallback(async (mk: string, bust = false) => {
+    const isPast = mk < currentMonthKey()
+
+    // Serve from cache for past months (unless explicitly busting)
+    if (isPast && !bust) {
+      const cached = monthCache.get(mk)
+      if (cached) {
+        setTransactions(cached.transactions)
+        setSummary(cached.summary)
+        setListStatus('loaded')
+        setListError(null)
+        return
+      }
+    }
+
     setListStatus('loading')
     setListError(null)
     setSummary(null)
@@ -96,6 +116,7 @@ export function useTransactionList() {
         dbClient.transactions.listByMonth(mk),
         dbClient.transactions.getMonthlySummary(mk),
       ])
+      if (isPast) monthCache.set(mk, { transactions: rows, summary: sum })
       setTransactions(rows)
       setSummary(sum)
       setListStatus('loaded')
@@ -187,6 +208,6 @@ export function useTransactionList() {
     setSort,
     goToPrevMonth: () => { setMonthKey(prevMonthKey); clearFilters() },
     goToNextMonth: () => { setMonthKey(nextMonthKey); clearFilters() },
-    reload: () => loadTransactions(monthKey),
+    reload: () => { monthCache.delete(monthKey); loadTransactions(monthKey, true) },
   }
 }
