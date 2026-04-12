@@ -1,6 +1,7 @@
-const OLLAMA_URL = 'http://localhost:11434/api/generate'
-const OLLAMA_MODEL = 'gemma4:e4b'
-const OLLAMA_TIMEOUT_MS = 15_000
+const OLLAMA_BASE    = process.env.OLLAMA_URL ?? 'http://localhost:11434'
+const OLLAMA_URL     = `${OLLAMA_BASE}/api/generate`
+const OLLAMA_MODEL   = process.env.OLLAMA_MODEL ?? 'gemma4:e4b'
+const OLLAMA_TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_CATEGORIZE ?? 15_000)
 
 export function buildCategorizePrompt(
   description: string,
