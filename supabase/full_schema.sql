@@ -1,6 +1,6 @@
 -- ==================================================================
 -- Oikos — full database schema
--- Generated: 2026-04-12T16:17:16Z
+-- Generated: 2026-04-12T19:13:18Z
 -- Run this once in a fresh Supabase project's SQL editor.
 -- ==================================================================
 
@@ -3140,4 +3140,14 @@ UPDATE categorization_rules
 
 ALTER TABLE categorization_rules
   DROP COLUMN IF EXISTS amount_cents;
+
+-- ────────────────────────────────────────────────────────────────────
+-- alter_categorization_rules_add_note.sql
+-- ────────────────────────────────────────────────────────────────────
+
+-- Add optional note to categorization rules.
+-- When a rule matches, this note is applied to the transaction alongside the category.
+
+ALTER TABLE categorization_rules
+  ADD COLUMN IF NOT EXISTS note text;
 

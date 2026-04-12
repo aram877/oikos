@@ -65,8 +65,13 @@ export function useCategorizationRules() {
           const minOk     = rule.amount_min_cents === null || abs >= rule.amount_min_cents
           const maxOk     = rule.amount_max_cents === null || abs <= rule.amount_max_cents
           if (descMatch && minOk && maxOk) {
-            if (tx.category_id !== rule.category_id) {
-              await dbClient.transactions.update(tx.id, { category_id: rule.category_id })
+            const categoryChanged = tx.category_id !== rule.category_id
+            const noteChanged     = rule.note !== null && tx.notes !== rule.note
+            if (categoryChanged || noteChanged) {
+              await dbClient.transactions.update(tx.id, {
+                category_id: rule.category_id,
+                ...(rule.note !== null ? { notes: rule.note } : {}),
+              })
               applied++
             }
             break

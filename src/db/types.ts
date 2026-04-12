@@ -314,6 +314,7 @@ export interface CategorizationRuleRow {
   amount_min_cents:     number | null  // null = no lower bound  (|amount| >= min)
   amount_max_cents:     number | null  // null = no upper bound  (|amount| <= max)
   category_id:          string
+  note:                 string | null  // optional note applied to matched transactions
   created_at:           string
 }
 
@@ -322,4 +323,5 @@ export interface InsertCategorizationRuleInput {
   amount_min_cents:     number | null
   amount_max_cents:     number | null
   category_id:          string
+  note:                 string | null
 }

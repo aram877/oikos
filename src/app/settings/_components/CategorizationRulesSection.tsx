@@ -12,7 +12,7 @@ interface Props {
   categories:   CategoryRow[]
   loading:      boolean
   error:        string | null
-  addRule:      (input: { description_contains: string; amount_min_cents: number | null; amount_max_cents: number | null; category_id: string }) => Promise<void>
+  addRule:      (input: { description_contains: string; amount_min_cents: number | null; amount_max_cents: number | null; category_id: string; note: string | null }) => Promise<void>
   removeRule:   (id: string) => Promise<void>
   recategorize: () => Promise<void>
   recatStatus:  RecatStatus
@@ -26,6 +26,7 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
   const [amountMin, setAmountMin] = useState('')
   const [amountMax, setAmountMax] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [note,      setNote]      = useState('')
   const [saving,    setSaving]    = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -48,11 +49,13 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
         amount_min_cents:     parseCents(amountMin),
         amount_max_cents:     parseCents(amountMax),
         category_id:          categoryId,
+        note:                 note.trim() || null,
       })
       setDesc('')
       setAmountMin('')
       setAmountMax('')
       setCategoryId('')
+      setNote('')
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -106,6 +109,9 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
                 <span className="text-neutral-600 dark:text-neutral-400">
                   {categoryName(rule.category_id)}
                 </span>
+                {rule.note && (
+                  <span className="ml-2 text-xs text-neutral-400 italic">"{rule.note}"</span>
+                )}
               </div>
               <button
                 onClick={() => handleDelete(rule.id)}
@@ -159,6 +165,15 @@ export function CategorizationRulesSection({ rules, categories, loading, error, 
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+          <div className="col-span-2">
+            <input
+              type="text"
+              placeholder="Note (optional — applied to matched transactions)"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              className="w-full rounded border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
         </div>
 
         {saveError && (
