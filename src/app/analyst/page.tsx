@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAnalyst } from "./_hooks/useAnalyst";
+import { useAbilities } from "@/hooks/useAbilities";
 import { StatusMsg } from "@/components/StatusMsg";
 import { ErrorBox } from "@/components/ErrorBox";
 import type {
@@ -191,6 +192,8 @@ function ExpenseBreakdownCard({ items }: { items: ExpenseBreakdownItem[] }) {
 
 // ── Section C — Fixed vs Variable ─────────────────────────────────────────── //
 
+const LIST_CAP = 15
+
 function FixedVariableCard({
   fixed,
   variable,
@@ -200,21 +203,25 @@ function FixedVariableCard({
   variable: VariableExpenseItem[];
   variableTotalCents: number;
 }) {
-  const fixedTotal = fixed.reduce((s, f) => s + f.monthlyAvgCents, 0);
+  const [showAllFixed,    setShowAllFixed]    = useState(false)
+  const [showAllVariable, setShowAllVariable] = useState(false)
+
+  const fixedTotal    = fixed.reduce((s, f) => s + f.monthlyAvgCents, 0)
+  const fixedVisible  = showAllFixed    ? fixed    : fixed.slice(0, LIST_CAP)
+  const varVisible    = showAllVariable ? variable : variable.slice(0, LIST_CAP)
+
   return (
     <Card title="Fixed vs Variable Expenses">
       {/* Summary row */}
       <div className="mb-4 flex gap-4">
         <div className="flex-1 rounded-lg bg-neutral-50 p-3 text-center dark:bg-neutral-900">
-          <div className="text-xs text-neutral-500">Fixed (monthly avg)</div>
+          <div className="text-xs text-neutral-500">Fixed /mo</div>
           <div className="mt-1 font-semibold text-neutral-800 dark:text-neutral-200">
             {formatEur(fixedTotal)}
           </div>
         </div>
         <div className="flex-1 rounded-lg bg-neutral-50 p-3 text-center dark:bg-neutral-900">
-          <div className="text-xs text-neutral-500">
-            Variable (period total)
-          </div>
+          <div className="text-xs text-neutral-500">Variable (period)</div>
           <div className="mt-1 font-semibold text-neutral-800 dark:text-neutral-200">
             {formatEur(variableTotalCents)}
           </div>
@@ -223,54 +230,130 @@ function FixedVariableCard({
 
       {/* Fixed list */}
       <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500">
-        Fixed
+        Fixed — recurring with consistent amount
       </div>
       {fixed.length === 0 ? (
-        <p className="mb-4 text-sm text-neutral-400 dark:text-neutral-500">
-          None detected.
-        </p>
+        <p className="mb-4 text-sm text-neutral-400 dark:text-neutral-500">None detected.</p>
       ) : (
-        <ul className="mb-4 space-y-1.5">
-          {fixed.map((item) => (
-            <li key={item.name} className="flex justify-between text-sm">
-              <span className="truncate text-neutral-700 dark:text-neutral-300">
-                {item.name}
-              </span>
-              <span className="ml-4 shrink-0 tabular-nums text-neutral-500">
-                {formatEur(item.monthlyAvgCents)}/mo
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="mb-4">
+          <ul className="space-y-1.5">
+            {fixedVisible.map((item) => (
+              <li key={item.name} className="flex justify-between text-sm">
+                <span className="truncate text-neutral-700 dark:text-neutral-300">{item.name}</span>
+                <span className="ml-4 shrink-0 tabular-nums text-neutral-500">
+                  {formatEur(item.monthlyAvgCents)}/mo
+                </span>
+              </li>
+            ))}
+          </ul>
+          {fixed.length > LIST_CAP && (
+            <button
+              onClick={() => setShowAllFixed(v => !v)}
+              className="mt-2 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+            >
+              {showAllFixed ? 'Show less' : `+ ${fixed.length - LIST_CAP} more`}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Variable list */}
       <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500">
-        Variable
+        Variable — top by spend
       </div>
       {variable.length === 0 ? (
-        <p className="text-sm text-neutral-400 dark:text-neutral-500">
-          None detected.
-        </p>
+        <p className="text-sm text-neutral-400 dark:text-neutral-500">None detected.</p>
       ) : (
-        <ul className="space-y-1.5">
-          {variable.map((item) => (
-            <li key={item.name} className="flex justify-between text-sm">
-              <span className="truncate text-neutral-700 dark:text-neutral-300">
-                {item.name}
-              </span>
-              <span className="ml-4 shrink-0 tabular-nums text-neutral-500">
-                {formatEur(item.totalCents)}
-                <span className="ml-1 text-xs text-neutral-400">
-                  ×{item.count}
+        <div>
+          <ul className="space-y-1.5">
+            {varVisible.map((item) => (
+              <li key={item.name} className="flex justify-between text-sm">
+                <span className="truncate text-neutral-700 dark:text-neutral-300">{item.name}</span>
+                <span className="ml-4 shrink-0 tabular-nums text-neutral-500">
+                  {formatEur(item.totalCents)}
+                  <span className="ml-1 text-xs text-neutral-400">×{item.count}</span>
                 </span>
-              </span>
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+          </ul>
+          {variable.length > LIST_CAP && (
+            <button
+              onClick={() => setShowAllVariable(v => !v)}
+              className="mt-2 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+            >
+              {showAllVariable ? 'Show less' : `+ ${variable.length - LIST_CAP} more`}
+            </button>
+          )}
+        </div>
       )}
     </Card>
-  );
+  )
+}
+
+// ── AI Insights card ──────────────────────────────────────────────────────── //
+
+function AiInsightsCard({
+  aiStatus,
+  aiInsights,
+  aiError,
+  onGenerate,
+}: {
+  aiStatus:    'idle' | 'loading' | 'done' | 'error'
+  aiInsights:  string | null
+  aiError:     string | null
+  onGenerate:  () => void
+}) {
+  return (
+    <Card title="AI Insights">
+      {aiStatus === 'idle' && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-neutral-400 dark:text-neutral-500">
+            Ask your local AI to interpret this report.
+          </p>
+          <button
+            onClick={onGenerate}
+            className="ml-4 shrink-0 rounded bg-neutral-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+          >
+            Generate
+          </button>
+        </div>
+      )}
+
+      {aiStatus === 'loading' && (
+        <p className="text-sm text-neutral-400 dark:text-neutral-500 animate-pulse">
+          Thinking… (this may take a moment)
+        </p>
+      )}
+
+      {aiStatus === 'error' && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-red-500">{aiError ?? 'Failed to get insights.'}</p>
+          <button
+            onClick={onGenerate}
+            className="ml-4 shrink-0 text-sm text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {aiStatus === 'done' && aiInsights && (
+        <div className="space-y-2">
+          {aiInsights.split('\n').filter(l => l.trim()).map((line, i) => (
+            <p key={i} className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
+              {line}
+            </p>
+          ))}
+          <button
+            onClick={onGenerate}
+            className="mt-1 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+          >
+            Regenerate
+          </button>
+        </div>
+      )}
+    </Card>
+  )
 }
 
 // ── Section D — Recurring Payments ───────────────────────────────────────── //
@@ -405,7 +488,8 @@ const PERIOD_OPTIONS = [
 // ── Page ──────────────────────────────────────────────────────────────────── //
 
 export default function AnalystPage() {
-  const { status, error, report, generate } = useAnalyst();
+  const { status, error, report, generate, aiInsights, aiStatus, aiError, generateInsights } = useAnalyst();
+  const { can, loading: abilitiesLoading } = useAbilities();
   const [months, setMonths] = useState(3);
 
   function handlePeriodChange(m: number) {
@@ -479,12 +563,35 @@ export default function AnalystPage() {
       )}
 
       {/* Report */}
-      {status === "loaded" && report && <Report report={report} />}
+      {status === "loaded" && report && (
+        <Report
+          report={report}
+          aiInsights={aiInsights}
+          aiStatus={aiStatus}
+          aiError={aiError}
+          onGenerateInsights={generateInsights}
+          canAi={abilitiesLoading || can('ai', 'write')}
+        />
+      )}
     </div>
   );
 }
 
-function Report({ report }: { report: AnalystReport }) {
+function Report({
+  report,
+  aiInsights,
+  aiStatus,
+  aiError,
+  onGenerateInsights,
+  canAi,
+}: {
+  report: AnalystReport
+  aiInsights: string | null
+  aiStatus: 'idle' | 'loading' | 'done' | 'error'
+  aiError: string | null
+  onGenerateInsights: () => void
+  canAi: boolean
+}) {
   if (
     report.cashFlow.totalIncomeCents === 0 &&
     report.cashFlow.totalExpenseCents === 0 &&
@@ -498,6 +605,14 @@ function Report({ report }: { report: AnalystReport }) {
   }
   return (
     <>
+      {canAi && (
+        <AiInsightsCard
+          aiStatus={aiStatus}
+          aiInsights={aiInsights}
+          aiError={aiError}
+          onGenerate={onGenerateInsights}
+        />
+      )}
       <CashFlowCard cf={report.cashFlow} />
       <ExpenseBreakdownCard items={report.expenseBreakdown} />
       <FixedVariableCard
