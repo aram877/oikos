@@ -18,6 +18,7 @@ const NAV: NavEntry[] = [
     items: [
       { href: '/dashboard',    label: 'Overview'     },
       { href: '/transactions', label: 'Transactions' },
+      { href: '/yearly',       label: 'Yearly'       },
     ],
   },
   {

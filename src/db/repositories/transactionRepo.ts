@@ -252,6 +252,26 @@ export async function getMonthlySummary(
 // ── Import helpers ────────────────────────────────────────────────────────── //
 
 /**
+ * Returns all active uncategorized transactions for the account.
+ * Used by the global auto-categorize feature.
+ */
+export async function listUncategorized(accountId?: string): Promise<TransactionListRow[]> {
+  const resolvedAccountId = accountId ?? await getActiveAccountId()
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select(TX_SELECT)
+    .eq('account_id', resolvedAccountId)
+    .is('category_id', null)
+    .is('deleted_at', null)
+    .order('date', { ascending: false })
+
+  if (error) throw new Error(`[transactionRepo.listUncategorized] ${error.message}`)
+  return ((data ?? []) as unknown as SupabaseTxRow[]).map(flattenTransactionListRow)
+}
+
+/**
  * Returns the subset of the provided import_hash values that already exist.
  */
 export async function checkImportHashes(hashes: string[]): Promise<string[]> {

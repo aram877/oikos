@@ -99,6 +99,8 @@ export const dbClient = {
     findCategoryByDescription: (description: string):                 Promise<string | null>         => transactionRepo.findCategoryByDescription(description),
     listByDateRange: (startDate: string, endDate: string, accountId?: string): Promise<TransactionListRow[]> =>
       transactionRepo.listByDateRange(startDate, endDate, accountId),
+    listUncategorized: (accountId?: string): Promise<TransactionListRow[]> =>
+      transactionRepo.listUncategorized(accountId),
     countSameDescriptionInMonth: (description: string, yearMonth: string, excludeId: string): Promise<number> =>
       transactionRepo.countSameDescriptionInMonth(description, yearMonth, excludeId),
     updateCategoryByDescriptionInMonth: (description: string, yearMonth: string, categoryId: string | null, excludeId: string): Promise<number> =>
