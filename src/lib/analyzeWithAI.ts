@@ -1,14 +1,12 @@
 import type { AnalystReport } from './analyst'
+import { getAiConfig, type AiConfig } from './aiConfig'
 
-const OLLAMA_BASE    = process.env.OLLAMA_URL ?? 'http://localhost:11434'
-const OLLAMA_URL     = `${OLLAMA_BASE}/api/generate`
-const OLLAMA_MODEL   = process.env.OLLAMA_MODEL ?? 'gemma4:e4b'
 const OLLAMA_TIMEOUT = Number(process.env.OLLAMA_TIMEOUT_ANALYZE ?? 60_000)
 
 const eurFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 const eur = (cents: number) => eurFmt.format(cents / 100)
 
-function buildPrompt(report: AnalystReport): string {
+export function buildPrompt(report: AnalystReport): string {
   const { cashFlow, expenseBreakdown, fixedExpenses, anomalies, periodLabel } = report
 
   const savingsRate = cashFlow.totalIncomeCents > 0
@@ -38,23 +36,25 @@ ${topCategories}
 Focus on: savings rate health, dominant spending areas, anything unusual, one actionable suggestion.`
 }
 
-export async function analyzeWithAI(report: AnalystReport): Promise<string> {
+async function analyzeWithOllama(report: AnalystReport, cfg: AiConfig): Promise<string> {
+  const base = cfg.ollama.url.replace(/\/$/, '')
+  const url  = `${base}/api/generate`
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT)
 
   try {
-    const res = await fetch(OLLAMA_URL, {
+    const res = await fetch(url, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
-        model:  OLLAMA_MODEL,
+        model:  cfg.ollama.model,
         prompt: buildPrompt(report),
         stream: false,
       }),
       signal: controller.signal,
     })
 
-    if (!res.ok) throw new Error(`Ollama unavailable — is it running at ${OLLAMA_BASE}?`)
+    if (!res.ok) throw new Error(`Ollama unavailable — is it running at ${base}?`)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const json: any = await res.json()
@@ -62,12 +62,49 @@ export async function analyzeWithAI(report: AnalystReport): Promise<string> {
     if (!text) throw new Error('Empty response from model')
     return text
   } catch (err) {
-    // Wrap network errors (ECONNREFUSED, AbortError) with a friendly message
     if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('fetch'))) {
-      throw new Error(`Ollama unavailable — is it running at ${OLLAMA_BASE}?`)
+      throw new Error(`Ollama unavailable — is it running at ${base}?`)
     }
     throw err
   } finally {
     clearTimeout(timer)
   }
+}
+
+async function analyzeWithClaude(report: AnalystReport, cfg: AiConfig): Promise<string> {
+  if (!cfg.claude.apiKey) {
+    throw new Error('Claude API key not configured. Go to Settings → AI Configuration.')
+  }
+
+  let res: Response
+  try {
+    res = await fetch('/api/ai/analyze', {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${cfg.claude.apiKey}`,
+        'X-Ai-Model':    cfg.claude.model,
+      },
+      body: JSON.stringify({ report }),
+    })
+  } catch {
+    throw new Error('Network error — could not reach the AI analysis endpoint.')
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const json: any = await res.json()
+
+  if (!res.ok) {
+    throw new Error(json?.error ?? `Request failed (${res.status})`)
+  }
+
+  return json.text as string
+}
+
+export async function analyzeWithAI(report: AnalystReport, config?: AiConfig): Promise<string> {
+  const cfg = config ?? getAiConfig()
+  if (cfg.provider === 'claude') {
+    return analyzeWithClaude(report, cfg)
+  }
+  return analyzeWithOllama(report, cfg)
 }

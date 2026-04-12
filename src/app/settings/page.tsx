@@ -20,6 +20,7 @@ import { useCategorizationRules } from './_hooks/useCategorizationRules'
 import { CategorySection } from './_components/CategorySection'
 import { AccountMembersSection } from './_components/AccountMembersSection'
 import { CategorizationRulesSection } from './_components/CategorizationRulesSection'
+import { AiConfigSection } from './_components/AiConfigSection'
 import { dbClient } from '@/db/db.client'
 
 type ResetStep = 'idle' | 'confirm' | 'resetting'
@@ -113,6 +114,14 @@ export default function SettingsPage() {
           {...categorizationRules}
           categories={categories.categories}
         />
+      </section>
+
+      {/* AI Configuration */}
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          AI Configuration
+        </h2>
+        <AiConfigSection />
       </section>
 
       {/* Migrate local data */}
