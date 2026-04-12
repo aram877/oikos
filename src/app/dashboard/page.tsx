@@ -24,6 +24,9 @@ function formatMonthLabel(key: string): string {
   return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 }
 
+// Module-level cache — same logic as useTransactionList: past months are immutable.
+const dashboardCache = new Map<string, TransactionListRow[]>()
+
 // ── Page ─────────────────────────────────────────────────────────────────── //
 
 export default function DashboardPage() {
@@ -32,9 +35,15 @@ export default function DashboardPage() {
   const [status,       setStatus]       = useState<'loading' | 'loaded' | 'error'>('loading')
 
   const load = useCallback(async (mk: string) => {
+    const isPast = mk < currentMonthKey()
+    if (isPast) {
+      const cached = dashboardCache.get(mk)
+      if (cached) { setTransactions(cached); setStatus('loaded'); return }
+    }
     setStatus('loading')
     try {
       const rows = await dbClient.transactions.listByMonth(mk)
+      if (isPast) dashboardCache.set(mk, rows)
       setTransactions(rows)
       setStatus('loaded')
     } catch {
