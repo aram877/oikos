@@ -49,6 +49,9 @@ migrations=(
   # 2026-03-14 — push notifications, DMs
   "supabase/add_push_subscriptions.sql"
   "supabase/add_dm_messages.sql"
+
+  # 2026-04-12 — categorization rules
+  "supabase/add_categorization_rules.sql"
 )
 
 {

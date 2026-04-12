@@ -16,16 +16,19 @@ import { createClient } from '@/lib/supabase/client'
 import { useCategories } from './_hooks/useCategories'
 import { useAccountMembers } from './_hooks/useAccountMembers'
 import { useMigration } from './_hooks/useMigration'
+import { useCategorizationRules } from './_hooks/useCategorizationRules'
 import { CategorySection } from './_components/CategorySection'
 import { AccountMembersSection } from './_components/AccountMembersSection'
+import { CategorizationRulesSection } from './_components/CategorizationRulesSection'
 import { dbClient } from '@/db/db.client'
 
 type ResetStep = 'idle' | 'confirm' | 'resetting'
 
 export default function SettingsPage() {
-  const categories     = useCategories()
-  const accountMembers = useAccountMembers()
-  const migration      = useMigration()
+  const categories           = useCategories()
+  const accountMembers       = useAccountMembers()
+  const migration            = useMigration()
+  const categorizationRules  = useCategorizationRules()
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [resetStep,     setResetStep]     = useState<ResetStep>('idle')
@@ -96,6 +99,20 @@ export default function SettingsPage() {
           Categories
         </h2>
         <CategorySection {...categories} />
+      </section>
+
+      {/* Categorization Rules */}
+      <section className="mb-10">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          Auto-categorization Rules
+        </h2>
+        <p className="mb-3 text-xs text-neutral-400 dark:text-neutral-500">
+          Rules run first — before history and AI. If description contains the text (and optionally matches the amount), the category is applied automatically.
+        </p>
+        <CategorizationRulesSection
+          {...categorizationRules}
+          categories={categories.categories}
+        />
       </section>
 
       {/* Migrate local data */}

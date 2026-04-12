@@ -304,3 +304,20 @@ export interface UpsertSlotInput {
   slot:        SlotName
   meal_id:     string | null  // null = clear the slot
 }
+
+// ── Categorization rule types ─────────────────────────────────────────────── //
+
+export interface CategorizationRuleRow {
+  id:                   string
+  account_id:           string
+  description_contains: string
+  amount_cents:         number | null  // null = match any amount
+  category_id:          string
+  created_at:           string
+}
+
+export interface InsertCategorizationRuleInput {
+  description_contains: string
+  amount_cents:         number | null
+  category_id:          string
+}
