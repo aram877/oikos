@@ -26,6 +26,7 @@ export function useEditTransaction(id: string) {
   const [matchCount,          setMatchCount]          = useState<number>(0)
   const [applyToAll,          setApplyToAll]          = useState<boolean>(false)
   const [isTransfer,          setIsTransfer]          = useState<boolean>(false)
+  const [notes,               setNotes]               = useState<string>('')
 
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle')
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -57,6 +58,7 @@ export function useEditTransaction(id: string) {
         setCategoryId(loaded.category_id ?? '')
         setOriginalCategoryId(loaded.category_id ?? '')
         setIsTransfer(loaded.is_transfer)
+        setNotes(loaded.notes ?? '')
         setTx(loaded)
         // Fire-and-forget: non-critical — silently ignore errors
         dbClient.transactions
@@ -101,7 +103,7 @@ export function useEditTransaction(id: string) {
         amount_cents: cents,
         date,
         description:  description.trim(),
-        notes:        tx?.notes ?? null,
+        notes:        notes.trim() || null,
         is_transfer:  isTransfer,
       })
       if (applyToAll && matchCount > 0) {
@@ -155,6 +157,8 @@ export function useEditTransaction(id: string) {
     setApplyToAll,
     isTransfer,
     setIsTransfer,
+    notes,
+    setNotes,
     submitStatus,
     submitError,
     deleteStep,

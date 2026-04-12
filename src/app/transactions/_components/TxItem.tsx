@@ -40,9 +40,14 @@ export function TxItem({ tx }: { tx: TransactionListRow }) {
           {tx.date}
         </span>
         <div className="flex flex-wrap justify-between gap-2 lg:gap-4 flex-1 min-w-0">
-          <span className="min-w-0 break-words sm:truncate text-foreground">{tx.description}</span>
+          <div className="min-w-0 flex flex-col gap-0.5">
+            <span className="min-w-0 break-words sm:truncate text-foreground">{tx.description}</span>
+            {tx.notes && (
+              <span className="text-xs text-muted-foreground truncate">{tx.notes}</span>
+            )}
+          </div>
           {tx.category_name && (
-            <Badge variant="secondary" className="text-[10px] lg:text-xs shrink-0">
+            <Badge variant="secondary" className="text-[10px] lg:text-xs shrink-0 self-start">
               {tx.category_name}
             </Badge>
           )}

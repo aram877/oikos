@@ -25,6 +25,8 @@ export default function NewTransactionPage() {
     setCategoryId,
     isTransfer,
     setIsTransfer,
+    notes,
+    setNotes,
     submitStatus,
     submitError,
     handleSubmit,
@@ -76,6 +78,7 @@ export default function NewTransactionPage() {
         accountId={accountId}
         categoryId={categoryId}
         isTransfer={isTransfer}
+        notes={notes}
         busy={busy}
         submitError={submitError}
         submitLabel={submitStatus === 'submitting' ? 'Saving…' : 'Save transaction'}
@@ -86,6 +89,7 @@ export default function NewTransactionPage() {
         onAccountIdChange={setAccountId}
         onCategoryIdChange={setCategoryId}
         onIsTransferChange={setIsTransfer}
+        onNotesChange={setNotes}
         onSubmit={handleSubmit}
       />
 
