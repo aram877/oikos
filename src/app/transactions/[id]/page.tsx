@@ -36,6 +36,8 @@ export default function EditTransactionPage({
     setApplyToAll,
     isTransfer,
     setIsTransfer,
+    notes,
+    setNotes,
     submitStatus,
     submitError,
     deleteStep,
@@ -94,6 +96,7 @@ export default function EditTransactionPage({
         accountId={accountId}
         categoryId={categoryId}
         isTransfer={isTransfer}
+        notes={notes}
         busy={busy}
         submitError={submitError}
         submitLabel={submitStatus === 'submitting' ? 'Saving…' : 'Save changes'}
@@ -104,6 +107,7 @@ export default function EditTransactionPage({
         onAccountIdChange={setAccountId}
         onCategoryIdChange={setCategoryId}
         onIsTransferChange={setIsTransfer}
+        onNotesChange={setNotes}
         onSubmit={handleSave}
         cancelHref={backHref}
         categoryChanged={categoryId !== originalCategoryId}

@@ -21,6 +21,7 @@ export function useNewTransaction() {
   const [accountId, setAccountId] = useState<string>('')
   const [categoryId,   setCategoryId]   = useState<string>('')
   const [isTransfer,   setIsTransfer]   = useState<boolean>(false)
+  const [notes,        setNotes]        = useState<string>('')
 
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle')
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -75,7 +76,7 @@ export function useNewTransaction() {
         amount_cents: cents,
         date,
         description: description.trim(),
-        notes:       null,
+        notes:       notes.trim() || null,
         is_transfer: isTransfer,
       })
       setSubmitStatus('done')
@@ -105,6 +106,8 @@ export function useNewTransaction() {
     setCategoryId,
     isTransfer,
     setIsTransfer,
+    notes,
+    setNotes,
     submitStatus,
     submitError,
     handleSubmit,

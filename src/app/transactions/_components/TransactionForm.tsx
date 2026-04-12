@@ -14,6 +14,7 @@ interface TransactionFormProps {
   accountId: string
   categoryId: string
   isTransfer: boolean
+  notes: string
   busy: boolean
   submitError: string | null
   submitLabel: string
@@ -24,6 +25,7 @@ interface TransactionFormProps {
   onAccountIdChange: (v: string) => void
   onCategoryIdChange: (v: string) => void
   onIsTransferChange: (v: boolean) => void
+  onNotesChange: (v: string) => void
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
   cancelHref?: string
   categoryChanged?: boolean
@@ -42,6 +44,7 @@ export function TransactionForm({
   accountId,
   categoryId,
   isTransfer,
+  notes,
   busy,
   submitError,
   submitLabel,
@@ -52,6 +55,7 @@ export function TransactionForm({
   onAccountIdChange,
   onCategoryIdChange,
   onIsTransferChange,
+  onNotesChange,
   onSubmit,
   cancelHref = '/transactions',
   categoryChanged = false,
@@ -176,6 +180,21 @@ export function TransactionForm({
           </label>
         )}
       </div>
+
+      {/* Notes */}
+      <label className="flex flex-col gap-1">
+        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          Note <span className="ml-1 font-normal text-neutral-400">(optional)</span>
+        </span>
+        <textarea
+          value={notes}
+          onChange={(e) => onNotesChange(e.target.value)}
+          disabled={busy}
+          placeholder="Add a note…"
+          rows={2}
+          className="rounded border border-neutral-200 px-3 py-2 text-sm placeholder:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 resize-none"
+        />
+      </label>
 
       {/* Account (hidden when only one — no meaningful choice) */}
       {accounts.length > 1 && (
