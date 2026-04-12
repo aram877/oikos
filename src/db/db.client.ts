@@ -43,10 +43,13 @@ import type {
   UpsertSlotInput,
   MessageRow,
   InsertMessageInput,
+  CategorizationRuleRow,
+  InsertCategorizationRuleInput,
 } from './types'
 import type { ListMessagesOptions, ConversationPreview } from './repositories/messagesRepo'
 
-import * as accountRepo     from './repositories/accountRepo'
+import * as accountRepo              from './repositories/accountRepo'
+import * as categorizationRulesRepo from './repositories/categorizationRulesRepo'
 import * as categoryRepo    from './repositories/categoryRepo'
 import * as transactionRepo from './repositories/transactionRepo'
 import * as shoppingRepo    from './repositories/shoppingRepo'
@@ -132,6 +135,12 @@ export const dbClient = {
     upsertSlot: (input: UpsertSlotInput):              Promise<void>                     => mealPlanRepo.upsertSlot(input),
     addWeekToShoppingList: (weekStart: string):        Promise<{ added: number; skipped: number }> =>
       mealPlanRepo.addWeekIngredientsToShoppingList(weekStart),
+  },
+
+  categorizationRules: {
+    list:   ():                                       Promise<CategorizationRuleRow[]> => categorizationRulesRepo.listRules(),
+    insert: (input: InsertCategorizationRuleInput):   Promise<CategorizationRuleRow>   => categorizationRulesRepo.insertRule(input),
+    delete: (id: string):                             Promise<void>                    => categorizationRulesRepo.deleteRule(id),
   },
 
   messages: {
