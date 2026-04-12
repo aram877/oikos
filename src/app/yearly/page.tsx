@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useYearly } from './_hooks/useYearly'
 import { useAutoCategorize } from '@/app/transactions/_hooks/useAutoCategorize'
 import { useAbilities } from '@/hooks/useAbilities'
@@ -16,6 +17,7 @@ function formatEur(cents: number) { return eurFmt.format(cents / 100) }
 // ── Page ──────────────────────────────────────────────────────────────────── //
 
 export default function YearlyPage() {
+  const router = useRouter()
   const { year, currentYear, status, error, summary, load, goToYear } = useYearly()
   const { can, loading: abilitiesLoading } = useAbilities()
 
@@ -39,16 +41,7 @@ export default function YearlyPage() {
 
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/transactions"
-            className="text-sm text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
-            aria-label="Back"
-          >
-            ←
-          </Link>
-          <h1 className="text-xl font-semibold">Yearly Overview</h1>
-        </div>
+        <h1 className="text-xl font-semibold">Yearly Overview</h1>
 
         {(abilitiesLoading || can('ai', 'write')) && (
           <Button
@@ -122,14 +115,13 @@ export default function YearlyPage() {
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
               {summary.months.map(m => (
-                <tr key={m.yearMonth} className={m.txCount === 0 ? 'opacity-35' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'}>
-                  <td className="px-4 py-2.5">
-                    <Link
-                      href={`/transactions?month=${m.yearMonth}`}
-                      className="font-medium text-neutral-800 hover:underline dark:text-neutral-200"
-                    >
-                      {m.label}
-                    </Link>
+                <tr
+                  key={m.yearMonth}
+                  onClick={() => router.push(`/transactions?month=${m.yearMonth}`)}
+                  className={`cursor-pointer ${m.txCount === 0 ? 'opacity-35' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'}`}
+                >
+                  <td className="px-4 py-2.5 font-medium text-neutral-800 dark:text-neutral-200">
+                    {m.label}
                     {m.txCount > 0 && (
                       <span className="ml-2 text-xs text-neutral-400">{m.txCount} tx</span>
                     )}
