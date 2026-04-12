@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
-  const str = base64String.trim()
+  const str = base64String.trim().replace(/^["']|["']$/g, '')
   const padding = '='.repeat((4 - (str.length % 4)) % 4)
   const base64 = (str + padding).replace(/-/g, '+').replace(/_/g, '/')
   const rawData = atob(base64)

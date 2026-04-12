@@ -393,15 +393,30 @@ function AnomaliesCard({ items }: { items: AnomalyItem[] }) {
   );
 }
 
+// ── Period options ────────────────────────────────────────────────────────── //
+
+const PERIOD_OPTIONS = [
+  { label: '1M',  months: 1  },
+  { label: '3M',  months: 3  },
+  { label: '6M',  months: 6  },
+  { label: '12M', months: 12 },
+]
+
 // ── Page ──────────────────────────────────────────────────────────────────── //
 
 export default function AnalystPage() {
   const { status, error, report, generate } = useAnalyst();
+  const [months, setMonths] = useState(3);
+
+  function handlePeriodChange(m: number) {
+    setMonths(m)
+    if (status === 'loaded' || status === 'loading') generate(m)
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Financial Analysis</h1>
           {report && (
@@ -410,32 +425,40 @@ export default function AnalystPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {status === "loaded" && (
-            <button
-              onClick={generate}
-              className="rounded border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
-            >
-              Regenerate
-            </button>
-          )}
-          <Link
-            href="/transactions"
-            className="rounded border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        <Link
+          href="/transactions"
+          className="rounded border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        >
+          ← Transactions
+        </Link>
+      </div>
+
+      {/* Period picker */}
+      <div className="mb-6 flex gap-1 rounded-lg border border-neutral-200 p-1 w-fit dark:border-neutral-700">
+        {PERIOD_OPTIONS.map(opt => (
+          <button
+            key={opt.months}
+            onClick={() => handlePeriodChange(opt.months)}
+            disabled={status === 'loading'}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+              months === opt.months
+                ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+            }`}
           >
-            ← Transactions
-          </Link>
-        </div>
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {/* Idle — prompt to generate */}
       {status === "idle" && (
-        <div className="py-16 text-center">
+        <div className="py-12 text-center">
           <p className="mb-4 text-sm text-neutral-500">
-            Analyse the last 3 months of transactions.
+            Analyse the last {months} month{months !== 1 ? 's' : ''} of transactions.
           </p>
           <button
-            onClick={generate}
+            onClick={() => generate(months)}
             className="rounded bg-neutral-900 px-6 py-2.5 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
           >
             Generate report
@@ -450,7 +473,7 @@ export default function AnalystPage() {
       {status === "error" && (
         <ErrorBox
           message={error ?? "Failed to load analysis."}
-          onRetry={generate}
+          onRetry={() => generate(months)}
           retryLabel="Try again"
         />
       )}

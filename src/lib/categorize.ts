@@ -1,5 +1,5 @@
 const OLLAMA_URL = 'http://localhost:11434/api/generate'
-const OLLAMA_MODEL = 'llama3.2'
+const OLLAMA_MODEL = 'gemma4:e4b'
 const OLLAMA_TIMEOUT_MS = 15_000
 
 export function buildCategorizePrompt(
