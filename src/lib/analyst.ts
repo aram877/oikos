@@ -236,7 +236,7 @@ function buildFixedExpenses(
 
   for (const [name, txs] of groups) {
     const months = [...new Set(txs.map(tx => toYearMonth(tx.date)))]
-    if (months.length < 2) continue
+    if (months.length < 3) continue
 
     const amounts = txs.map(tx => Math.abs(tx.amount_cents))
     const minAmt = Math.min(...amounts)

@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react'
 import { dbClient } from '@/db/db.client'
 import { buildReport } from '@/lib/analyst'
+import { analyzeWithAI } from '@/lib/analyzeWithAI'
 import type { AnalystReport } from '@/lib/analyst'
 
 export function useAnalyst(): {
@@ -10,10 +11,18 @@ export function useAnalyst(): {
   error: string | null
   report: AnalystReport | null
   generate: (months: number) => void
+  aiInsights: string | null
+  aiStatus: 'idle' | 'loading' | 'done' | 'error'
+  aiError: string | null
+  generateInsights: () => void
 } {
   const [status, setStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
   const [error,  setError]  = useState<string | null>(null)
   const [report, setReport] = useState<AnalystReport | null>(null)
+
+  const [aiInsights, setAiInsights] = useState<string | null>(null)
+  const [aiStatus,   setAiStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [aiError,    setAiError]    = useState<string | null>(null)
 
   const generate = useCallback((months: number) => {
     setStatus('loading')
@@ -53,5 +62,14 @@ export function useAnalyst(): {
     return () => { cancelled = true }
   }, [])
 
-  return { status, error, report, generate }
+  const generateInsights = useCallback(() => {
+    if (!report) return
+    setAiStatus('loading')
+    setAiError(null)
+    analyzeWithAI(report)
+      .then(text => { setAiInsights(text); setAiStatus('done') })
+      .catch(err  => { setAiError(err instanceof Error ? err.message : String(err)); setAiStatus('error') })
+  }, [report])
+
+  return { status, error, report, generate, aiInsights, aiStatus, aiError, generateInsights }
 }
