@@ -59,6 +59,11 @@ export default function TransactionsPage() {
     <div className="mx-auto max-w-2xl px-4 py-6">
       {/* Header */}
       <div className="mb-6">
+        <div className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Link href="/yearly" className="hover:text-foreground transition-colors">Yearly</Link>
+          <span>/</span>
+          <span className="text-foreground">{formatMonthLabel(monthKey)}</span>
+        </div>
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-xl font-semibold">Transactions</h1>
           <div className="flex items-center gap-2">
@@ -90,9 +95,6 @@ export default function TransactionsPage() {
               Auto-categorize
             </Button>
           )}
-          <Link href="/yearly" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-            Yearly
-          </Link>
           <Link href="/analyst" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
             Analyst
           </Link>
