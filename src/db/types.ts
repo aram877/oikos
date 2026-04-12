@@ -98,6 +98,12 @@ export interface MonthlySummary {
   by_category:         MonthlySummaryRow[]
 }
 
+export interface AccountBalance {
+  cashflow_cents:  number  // income − expenses (non-transfers) = net worth
+  transfers_cents: number  // net of transfer transactions (negative = moved to savings)
+  balance_cents:   number  // checking account balance (all transactions)
+}
+
 // ── Backup format ────────────────────────────────────────────────────────── //
 
 /** Bump this when the backup JSON shape changes incompatibly. */

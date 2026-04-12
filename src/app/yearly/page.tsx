@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation'
 import { useYearly } from './_hooks/useYearly'
 import { useAutoCategorize } from '@/app/transactions/_hooks/useAutoCategorize'
 import { useAbilities } from '@/hooks/useAbilities'
+import { useAccountBalance } from '@/hooks/useAccountBalance'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 // ── Formatter ─────────────────────────────────────────────────────────────── //
@@ -20,6 +22,7 @@ export default function YearlyPage() {
   const router = useRouter()
   const { year, currentYear, status, error, summary, load, goToYear } = useYearly()
   const { can, loading: abilitiesLoading } = useAbilities()
+  const { balance } = useAccountBalance()
 
   const {
     categorizeStatus,
@@ -64,6 +67,36 @@ export default function YearlyPage() {
             Categorized {categorizedCount} of {totalCount} transactions
           </span>
           <button onClick={dismissResult} className="ml-4 text-muted-foreground hover:text-foreground">✕</button>
+        </div>
+      )}
+
+      {/* Net worth bar */}
+      {balance && (
+        <div className="mb-6 grid grid-cols-3 gap-2">
+          <Card>
+            <CardContent className="py-3 px-4 text-center">
+              <div className="text-xs text-muted-foreground mb-1">Checking</div>
+              <div className={`text-base font-semibold tabular-nums ${balance.balance_cents >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}>
+                {formatEur(balance.balance_cents)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-3 px-4 text-center">
+              <div className="text-xs text-muted-foreground mb-1">Savings (est.)</div>
+              <div className="text-base font-semibold tabular-nums text-foreground">
+                {formatEur(-balance.transfers_cents)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-3 px-4 text-center">
+              <div className="text-xs text-muted-foreground mb-1">Net worth</div>
+              <div className={`text-base font-bold tabular-nums ${balance.cashflow_cents >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {formatEur(balance.cashflow_cents)}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 

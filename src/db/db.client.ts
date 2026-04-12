@@ -26,6 +26,7 @@ import type {
   InsertTransactionInput,
   UpdateTransactionInput,
   MonthlySummary,
+  AccountBalance,
   BackupFile,
   ShoppingItemRow,
   InsertShoppingItemInput,
@@ -103,6 +104,8 @@ export const dbClient = {
       transactionRepo.listUncategorized(accountId),
     listAllActive: (accountId?: string): Promise<TransactionListRow[]> =>
       transactionRepo.listAllActive(accountId),
+    getBalance: (accountId?: string): Promise<AccountBalance> =>
+      transactionRepo.getAccountBalance(accountId),
     countSameDescriptionInMonth: (description: string, yearMonth: string, excludeId: string): Promise<number> =>
       transactionRepo.countSameDescriptionInMonth(description, yearMonth, excludeId),
     updateCategoryByDescriptionInMonth: (description: string, yearMonth: string, categoryId: string | null, excludeId: string): Promise<number> =>
