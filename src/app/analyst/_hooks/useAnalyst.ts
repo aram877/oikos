@@ -9,13 +9,13 @@ export function useAnalyst(): {
   status: 'idle' | 'loading' | 'loaded' | 'error'
   error: string | null
   report: AnalystReport | null
-  generate: () => void
+  generate: (months: number) => void
 } {
   const [status, setStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
   const [error,  setError]  = useState<string | null>(null)
   const [report, setReport] = useState<AnalystReport | null>(null)
 
-  const generate = useCallback(() => {
+  const generate = useCallback((months: number) => {
     setStatus('loading')
     setError(null)
 
@@ -32,7 +32,7 @@ export function useAnalyst(): {
 
         const endD   = new Date(endDate + 'T00:00:00Z')
         const startD = new Date(endD)
-        startD.setUTCMonth(startD.getUTCMonth() - 3)
+        startD.setUTCMonth(startD.getUTCMonth() - months)
         const startDate = startD.toISOString().slice(0, 10)
 
         const txs = await dbClient.transactions.listByDateRange(startDate, endDate)
