@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { dbClient } from '@/db/db.client'
 import type { TransactionListRow, CategorizationRuleRow } from '@/db/types'
-import { categorizeWithOllama } from '@/lib/categorize'
+import { categorizeWithAI } from '@/lib/categorize'
 import type { CategorizeStatus } from '../_types'
 
 type RuleMatch = { categoryId: string; note: string | null }
@@ -106,7 +106,7 @@ export function useAutoCategorize(
 
             // 2. Fall back to Ollama.
             if (categoryName === null) {
-              categoryName = await categorizeWithOllama(tx.description, eligibleNames)
+              categoryName = await categorizeWithAI(tx.description, eligibleNames)
             }
 
             if (categoryName !== null) {

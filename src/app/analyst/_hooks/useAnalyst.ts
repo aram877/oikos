@@ -11,7 +11,7 @@ export function useAnalyst(): {
   status: 'idle' | 'loading' | 'loaded' | 'error'
   error: string | null
   report: AnalystReport | null
-  generate: (months: number) => void
+  generate: (months: number, customStart?: string, customEnd?: string) => void
   aiInsights: string | null
   aiStatus: 'idle' | 'loading' | 'done' | 'error'
   aiError: string | null
@@ -27,7 +27,7 @@ export function useAnalyst(): {
 
   const { config: aiConfig } = useAiConfig()
 
-  const generate = useCallback((months: number) => {
+  const generate = useCallback((months: number, customStart?: string, customEnd?: string) => {
     setStatus('loading')
     setError(null)
 
@@ -37,15 +37,26 @@ export function useAnalyst(): {
       try {
         await dbClient.init()
 
-        const now = new Date()
-        const endYear  = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()
-        const endMonth = now.getMonth() === 11 ? 1 : now.getMonth() + 2
-        const endDate  = `${String(endYear).padStart(4, '0')}-${String(endMonth).padStart(2, '0')}-01`
+        let startDate: string
+        let endDate: string
 
-        const endD   = new Date(endDate + 'T00:00:00Z')
-        const startD = new Date(endD)
-        startD.setUTCMonth(startD.getUTCMonth() - months)
-        const startDate = startD.toISOString().slice(0, 10)
+        if (customStart && customEnd) {
+          startDate = customStart
+          // endDate is exclusive — add 1 day to the selected end date
+          const endD = new Date(customEnd + 'T00:00:00Z')
+          endD.setUTCDate(endD.getUTCDate() + 1)
+          endDate = endD.toISOString().slice(0, 10)
+        } else {
+          const now      = new Date()
+          const endYear  = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()
+          const endMonth = now.getMonth() === 11 ? 1 : now.getMonth() + 2
+          endDate  = `${String(endYear).padStart(4, '0')}-${String(endMonth).padStart(2, '0')}-01`
+
+          const endD   = new Date(endDate + 'T00:00:00Z')
+          const startD = new Date(endD)
+          startD.setUTCMonth(startD.getUTCMonth() - months)
+          startDate = startD.toISOString().slice(0, 10)
+        }
 
         const txs = await dbClient.transactions.listByDateRange(startDate, endDate)
 

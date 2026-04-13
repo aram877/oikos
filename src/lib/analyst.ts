@@ -12,6 +12,7 @@ import type { TransactionListRow } from '@/db/types'
 export interface AnalystReport {
   periodLabel: string
   cashFlow: CashFlowSummary
+  incomeBreakdown: IncomeBreakdownItem[]
   expenseBreakdown: ExpenseBreakdownItem[]
   fixedExpenses: FixedExpenseItem[]
   variableExpenses: VariableExpenseItem[]
@@ -27,6 +28,13 @@ export interface CashFlowSummary {
   netCents: number
   transferCount: number
   transfers: TransactionListRow[]
+}
+
+export interface IncomeBreakdownItem {
+  category:    string
+  totalCents:  number
+  count:       number
+  pct:         number
 }
 
 export interface SubcategoryItem {
@@ -170,6 +178,28 @@ function buildCashFlow(
     transferCount: transfers.length,
     transfers,
   }
+}
+
+// ── Section A (part 2) — Income Breakdown ────────────────────────────────── //
+
+function buildIncomeBreakdown(income: TransactionListRow[]): IncomeBreakdownItem[] {
+  const groups = new Map<string, { totalCents: number; count: number }>()
+  for (const tx of income) {
+    const name = tx.parent_category_name ?? tx.category_name ?? 'Uncategorized'
+    const entry = groups.get(name) ?? { totalCents: 0, count: 0 }
+    entry.totalCents += tx.amount_cents
+    entry.count++
+    groups.set(name, entry)
+  }
+  const total = [...groups.values()].reduce((s, g) => s + g.totalCents, 0)
+  return [...groups.entries()]
+    .map(([category, g]) => ({
+      category,
+      totalCents: g.totalCents,
+      count: g.count,
+      pct: total > 0 ? (g.totalCents / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.totalCents - a.totalCents)
 }
 
 // ── Section B — Expense Breakdown ─────────────────────────────────────────── //
@@ -327,9 +357,9 @@ function buildRecurringPayments(expenses: TransactionListRow[]): RecurringItem[]
 
 // ── Section E — Merchant Analysis ─────────────────────────────────────────── //
 
-function buildMerchantAnalysis(nonTransfers: TransactionListRow[]): MerchantItem[] {
+function buildMerchantAnalysis(expenses: TransactionListRow[]): MerchantItem[] {
   const groups = new Map<string, { totalCents: number; count: number }>()
-  for (const tx of nonTransfers) {
+  for (const tx of expenses) {
     const key = normalize(tx.description)
     if (!key) continue
     const entry = groups.get(key) ?? { totalCents: 0, count: 0 }
@@ -380,8 +410,9 @@ function buildAnomalies(
     }
   }
 
-  // Rule 2: Category outlier — |amount| > mean + 2×stddev within category.
-  // Also skip known-regular transactions within their category.
+  // Rule 2: Category outlier — |amount| > mean + 3×stddev within category.
+  // Skip known-regular transactions within their category.
+  // Requires at least 5 transactions in a category for a reliable stddev.
   const catGroups = new Map<string, TransactionListRow[]>()
   for (const tx of expenses) {
     if (knownRegularNames.has(normalize(tx.description))) continue
@@ -392,7 +423,7 @@ function buildAnomalies(
   }
 
   for (const [cat, txs] of catGroups) {
-    if (txs.length < 3) continue
+    if (txs.length < 5) continue
     const amounts = txs.map(tx => Math.abs(tx.amount_cents))
     const m = mean(amounts)
     const sd = stddev(amounts)
@@ -486,15 +517,19 @@ export function buildReport(
     }
   }
 
-  const nonTransfers = [...income, ...expenses]
-
-  const cashFlow        = buildCashFlow(income, expenses, transfers)
+  const cashFlow         = buildCashFlow(income, expenses, transfers)
+  const incomeBreakdown  = buildIncomeBreakdown(income)
   const expenseBreakdown = buildExpenseBreakdown(expenses)
   const { fixedExpenses, variableTotalCents } = buildFixedExpenses(expenses, monthsInRange)
   const fixedNames = new Set(fixedExpenses.map(f => f.name))
   const variableExpenses = buildVariableExpenses(expenses, fixedNames)
-  const recurringPayments = buildRecurringPayments(expenses)
-  const merchantAnalysis  = buildMerchantAnalysis(nonTransfers)
+
+  // Recurring payments — deduplicated against fixed (same subscription won't appear in both)
+  const recurringRaw     = buildRecurringPayments(expenses)
+  const recurringPayments = recurringRaw.filter(r => !fixedNames.has(r.name))
+
+  // Merchant analysis — expenses only (income sources are not merchants)
+  const merchantAnalysis = buildMerchantAnalysis(expenses)
 
   // Build exclusion set for anomaly detection: anything already classified as
   // fixed or recurring is expected behaviour, not an anomaly.
@@ -524,6 +559,7 @@ export function buildReport(
   return {
     periodLabel,
     cashFlow,
+    incomeBreakdown,
     expenseBreakdown,
     fixedExpenses,
     variableExpenses,
