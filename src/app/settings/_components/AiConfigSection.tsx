@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAiConfig, type AiConfig, type AiProvider, type ClaudeModel } from '@/lib/aiConfig'
+import { useAiConfig, type AiConfig, type AiProvider, type ClaudeModel, type GroqModel } from '@/lib/aiConfig'
 import { useAbilities } from '@/hooks/useAbilities'
 
 const CLAUDE_MODELS: { value: ClaudeModel; label: string }[] = [
@@ -10,17 +10,22 @@ const CLAUDE_MODELS: { value: ClaudeModel; label: string }[] = [
   { value: 'claude-opus-4-6',           label: 'Claude Opus (most capable)' },
 ]
 
+const GROQ_MODELS: { value: GroqModel; label: string }[] = [
+  { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (best quality)' },
+  { value: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B (fastest)' },
+  { value: 'gemma2-9b-it',            label: 'Gemma 2 9B' },
+]
+
+const INPUT_CLS = 'w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200'
+
 export function AiConfigSection() {
   const { can, loading: abilitiesLoading } = useAbilities()
   const { config, setConfig } = useAiConfig()
 
-  const [local,   setLocal]   = useState<AiConfig>(config)
-  const [saved,   setSaved]   = useState(false)
+  const [local, setLocal] = useState<AiConfig>(config)
+  const [saved, setSaved] = useState(false)
 
-  // Sync local form state when config loads from localStorage
-  useEffect(() => {
-    setLocal(config)
-  }, [config])
+  useEffect(() => { setLocal(config) }, [config])
 
   if (!abilitiesLoading && !can('ai', 'read')) return null
 
@@ -34,13 +39,19 @@ export function AiConfigSection() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const isDeployed =
+    typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  const ollamaTargetsLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(local.ollama.url)
+
   return (
     <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
       {/* Provider toggle */}
       <div className="mb-4">
         <p className="mb-2 text-xs text-neutral-500">Provider</p>
         <div className="flex gap-1 rounded-lg border border-neutral-200 p-1 w-fit dark:border-neutral-700">
-          {(['ollama', 'claude'] as AiProvider[]).map(p => (
+          {(['ollama', 'groq', 'claude'] as AiProvider[]).map(p => (
             <button
               key={p}
               type="button"
@@ -51,7 +62,7 @@ export function AiConfigSection() {
                   : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
               }`}
             >
-              {p === 'ollama' ? 'Ollama' : 'Claude API'}
+              {p === 'ollama' ? 'Ollama' : p === 'groq' ? 'Groq' : 'Claude API'}
             </button>
           ))}
         </div>
@@ -60,13 +71,18 @@ export function AiConfigSection() {
       {/* Ollama fields */}
       {local.provider === 'ollama' && (
         <div className="space-y-3">
+          {isDeployed && ollamaTargetsLocalhost && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+              <strong>Not available on the deployed site.</strong> Ollama runs on your local machine and cannot be reached from here. Switch to <strong>Groq</strong> (free) or <strong>Claude API</strong> instead.
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-xs text-neutral-500">URL</label>
             <input
               type="text"
               value={local.ollama.url}
               onChange={e => setLocal(prev => ({ ...prev, ollama: { ...prev.ollama, url: e.target.value } }))}
-              className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+              className={INPUT_CLS}
               placeholder="http://localhost:11434"
             />
           </div>
@@ -76,12 +92,53 @@ export function AiConfigSection() {
               type="text"
               value={local.ollama.model}
               onChange={e => setLocal(prev => ({ ...prev, ollama: { ...prev.ollama, model: e.target.value } }))}
-              className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+              className={INPUT_CLS}
               placeholder="gemma4:e4b"
             />
           </div>
           <p className="text-xs text-neutral-400 dark:text-neutral-500">
             Make sure Ollama is running on your machine.
+          </p>
+        </div>
+      )}
+
+      {/* Groq fields */}
+      {local.provider === 'groq' && (
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">API Key</label>
+            <input
+              type="password"
+              autoComplete="off"
+              value={local.groq.apiKey}
+              onChange={e => setLocal(prev => ({ ...prev, groq: { ...prev.groq, apiKey: e.target.value } }))}
+              className={INPUT_CLS}
+              placeholder="gsk_…"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">Model</label>
+            <select
+              value={local.groq.model}
+              onChange={e => setLocal(prev => ({ ...prev, groq: { ...prev.groq, model: e.target.value as GroqModel } }))}
+              className={INPUT_CLS}
+            >
+              {GROQ_MODELS.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500">
+            Free tier — get a key at{' '}
+            <a
+              href="https://console.groq.com/keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-neutral-600 dark:hover:text-neutral-300"
+            >
+              console.groq.com
+            </a>
+            . Stored in this browser only.
           </p>
         </div>
       )}
@@ -96,7 +153,7 @@ export function AiConfigSection() {
               autoComplete="off"
               value={local.claude.apiKey}
               onChange={e => setLocal(prev => ({ ...prev, claude: { ...prev.claude, apiKey: e.target.value } }))}
-              className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+              className={INPUT_CLS}
               placeholder="sk-ant-…"
             />
           </div>
@@ -105,7 +162,7 @@ export function AiConfigSection() {
             <select
               value={local.claude.model}
               onChange={e => setLocal(prev => ({ ...prev, claude: { ...prev.claude, model: e.target.value as ClaudeModel } }))}
-              className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+              className={INPUT_CLS}
             >
               {CLAUDE_MODELS.map(m => (
                 <option key={m.value} value={m.value}>{m.label}</option>

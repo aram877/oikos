@@ -38,6 +38,20 @@ Focus on: savings rate health, dominant spending areas, anything unusual, one ac
 
 async function analyzeWithOllama(report: AnalystReport, cfg: AiConfig): Promise<string> {
   const base = cfg.ollama.url.replace(/\/$/, '')
+
+  // Browser fetch to a localhost Ollama from a deployed (HTTPS) origin is blocked by
+  // mixed-content policy and CORS — fail fast with a meaningful message.
+  if (typeof window !== 'undefined') {
+    const deployed = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    const targetsLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(base)
+    if (deployed && targetsLocalhost) {
+      throw new Error(
+        'Ollama runs on your local machine and cannot be reached from the deployed app. ' +
+        'Switch to Claude API in Settings → AI Configuration.',
+      )
+    }
+  }
+
   const url  = `${base}/api/generate`
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT)
@@ -93,18 +107,40 @@ async function analyzeWithClaude(report: AnalystReport, cfg: AiConfig): Promise<
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json: any = await res.json()
+  if (!res.ok) throw new Error(json?.error ?? `Request failed (${res.status})`)
+  return json.text as string
+}
 
-  if (!res.ok) {
-    throw new Error(json?.error ?? `Request failed (${res.status})`)
+async function analyzeWithGroq(report: AnalystReport, cfg: AiConfig): Promise<string> {
+  if (!cfg.groq.apiKey) {
+    throw new Error('Groq API key not configured. Go to Settings → AI Configuration.')
   }
 
+  let res: Response
+  try {
+    res = await fetch('/api/ai/analyze', {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${cfg.groq.apiKey}`,
+        'X-Ai-Model':    cfg.groq.model,
+        'X-Ai-Provider': 'groq',
+      },
+      body: JSON.stringify({ report }),
+    })
+  } catch {
+    throw new Error('Network error — could not reach the AI analysis endpoint.')
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const json: any = await res.json()
+  if (!res.ok) throw new Error(json?.error ?? `Request failed (${res.status})`)
   return json.text as string
 }
 
 export async function analyzeWithAI(report: AnalystReport, config?: AiConfig): Promise<string> {
   const cfg = config ?? getAiConfig()
-  if (cfg.provider === 'claude') {
-    return analyzeWithClaude(report, cfg)
-  }
+  if (cfg.provider === 'claude') return analyzeWithClaude(report, cfg)
+  if (cfg.provider === 'groq')   return analyzeWithGroq(report, cfg)
   return analyzeWithOllama(report, cfg)
 }

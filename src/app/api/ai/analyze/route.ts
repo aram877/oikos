@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { buildPrompt } from '@/lib/analyzeWithAI'
 import type { AnalystReport } from '@/lib/analyst'
 
-const VALID_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6']
-const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+const VALID_CLAUDE_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6']
+const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
+
+const VALID_GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it']
+const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile'
 
 export async function POST(req: NextRequest) {
   // 1. Extract Bearer token
@@ -13,9 +16,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing API key.' }, { status: 400 })
   }
 
-  // 2. Extract model
+  // 2. Provider + model
+  const provider    = req.headers.get('x-ai-provider') ?? 'claude'
   const modelHeader = req.headers.get('x-ai-model') ?? ''
-  const model = VALID_MODELS.includes(modelHeader) ? modelHeader : DEFAULT_MODEL
 
   // 3. Parse body
   let report: AnalystReport
@@ -27,14 +30,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  // 4. Call Anthropic
+  // ── Groq ──────────────────────────────────────────────────────────────────
+  if (provider === 'groq') {
+    const model = VALID_GROQ_MODELS.includes(modelHeader) ? modelHeader : DEFAULT_GROQ_MODEL
+
+    let groqRes: Response
+    try {
+      groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: buildPrompt(report) }],
+        }),
+      })
+    } catch {
+      return NextResponse.json({ error: 'Network error reaching Groq API.' }, { status: 502 })
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await groqRes.json()
+
+    if (!groqRes.ok) {
+      const status = groqRes.status
+      let message = data?.error?.message ?? `Groq error (${status})`
+      if (status === 401) message = 'Invalid Groq API key.'
+      if (status === 429) message = 'Rate limit exceeded. Try again later.'
+      return NextResponse.json({ error: message }, { status })
+    }
+
+    const text: string = data?.choices?.[0]?.message?.content ?? ''
+    return NextResponse.json({ text })
+  }
+
+  // ── Claude (default) ──────────────────────────────────────────────────────
+  const model = VALID_CLAUDE_MODELS.includes(modelHeader) ? modelHeader : DEFAULT_CLAUDE_MODEL
+
   let anthropicRes: Response
   try {
     anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method:  'POST',
       headers: {
-        'Content-Type':    'application/json',
-        'x-api-key':       apiKey,
+        'Content-Type':      'application/json',
+        'x-api-key':         apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
@@ -47,7 +89,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Network error reaching Anthropic API.' }, { status: 502 })
   }
 
-  // 5. Handle response
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any = await anthropicRes.json()
 
