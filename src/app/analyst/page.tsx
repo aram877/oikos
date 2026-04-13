@@ -9,6 +9,7 @@ import { ErrorBox } from "@/components/ErrorBox";
 import type {
   AnalystReport,
   CashFlowSummary,
+  IncomeBreakdownItem,
   ExpenseBreakdownItem,
   FixedExpenseItem,
   VariableExpenseItem,
@@ -16,7 +17,6 @@ import type {
   MerchantItem,
   AnomalyItem,
 } from "@/lib/analyst";
-// SubcategoryItem shape is accessed via ExpenseBreakdownItem['subcategories'][number]
 
 // ── Shared formatter ──────────────────────────────────────────────────────── //
 
@@ -52,6 +52,9 @@ function Card({
 function CashFlowCard({ cf }: { cf: CashFlowSummary }) {
   const [open, setOpen] = useState(false)
   const transferTotal = cf.transfers.reduce((sum, tx) => sum + tx.amount_cents, 0)
+  const savingsRate = cf.totalIncomeCents > 0
+    ? ((cf.netCents / cf.totalIncomeCents) * 100).toFixed(1)
+    : null
 
   return (
     <Card title="Cash Flow Summary">
@@ -81,6 +84,18 @@ function CashFlowCard({ cf }: { cf: CashFlowSummary }) {
           </div>
         </div>
       </div>
+
+      {savingsRate !== null && (
+        <p className="mt-2 text-center text-xs text-neutral-400 dark:text-neutral-500">
+          Savings rate: <span className={`font-medium ${
+            Number(savingsRate) >= 20
+              ? 'text-green-600 dark:text-green-400'
+              : Number(savingsRate) >= 0
+                ? 'text-neutral-600 dark:text-neutral-300'
+                : 'text-red-600 dark:text-red-400'
+          }`}>{savingsRate}%</span>
+        </p>
+      )}
 
       {cf.transferCount > 0 && (
         <div className="mt-2">
@@ -125,6 +140,38 @@ function CashFlowCard({ cf }: { cf: CashFlowSummary }) {
   );
 }
 
+// ── Section A (part 2) — Income Breakdown ────────────────────────────────── //
+
+function IncomeBreakdownCard({ items }: { items: IncomeBreakdownItem[] }) {
+  // Only show when there are 2+ distinct income sources
+  if (items.length < 2) return null
+  return (
+    <Card title="Income Breakdown">
+      <table className="w-full text-sm">
+        <tbody>
+          {items.map(item => (
+            <tr key={item.category} className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
+              <td className="py-1.5 pr-3 text-neutral-800 dark:text-neutral-200">{item.category}</td>
+              <td className="py-1.5 pr-3 text-right tabular-nums font-medium text-green-600 dark:text-green-400">
+                {formatEur(item.totalCents)}
+              </td>
+              <td className="py-1.5 w-32">
+                <div className="relative h-2 rounded bg-neutral-100 dark:bg-neutral-800">
+                  <div
+                    className="absolute left-0 top-0 h-2 rounded bg-green-400 dark:bg-green-600"
+                    style={{ width: `${Math.min(100, item.pct).toFixed(1)}%` }}
+                  />
+                </div>
+                <span className="text-xs text-neutral-400">{item.pct.toFixed(1)}%</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  )
+}
+
 // ── Section B — Expense Breakdown ─────────────────────────────────────────── //
 
 function ExpenseBreakdownCard({ items }: { items: ExpenseBreakdownItem[] }) {
@@ -144,9 +191,7 @@ function ExpenseBreakdownCard({ items }: { items: ExpenseBreakdownItem[] }) {
           {items.map((item, index) => (
             <React.Fragment key={item.category + index}>
               {/* Parent row */}
-              <tr
-                className="border-b border-neutral-100 dark:border-neutral-800"
-              >
+              <tr className="border-b border-neutral-100 dark:border-neutral-800">
                 <td className="py-1.5 pr-3 font-medium text-neutral-800 dark:text-neutral-200">
                   {item.category}
                 </td>
@@ -157,9 +202,7 @@ function ExpenseBreakdownCard({ items }: { items: ExpenseBreakdownItem[] }) {
                   <div className="relative h-2 rounded bg-neutral-100 dark:bg-neutral-800">
                     <div
                       className="absolute left-0 top-0 h-2 rounded bg-neutral-400 dark:bg-neutral-500"
-                      style={{
-                        width: `${Math.min(100, item.pct).toFixed(1)}%`,
-                      }}
+                      style={{ width: `${Math.min(100, item.pct).toFixed(1)}%` }}
                     />
                   </div>
                   <span className="text-xs text-neutral-400">
@@ -198,20 +241,28 @@ function FixedVariableCard({
   fixed,
   variable,
   variableTotalCents,
+  shortPeriod,
 }: {
   fixed: FixedExpenseItem[];
   variable: VariableExpenseItem[];
   variableTotalCents: number;
+  shortPeriod: boolean;
 }) {
   const [showAllFixed,    setShowAllFixed]    = useState(false)
   const [showAllVariable, setShowAllVariable] = useState(false)
 
-  const fixedTotal    = fixed.reduce((s, f) => s + f.monthlyAvgCents, 0)
-  const fixedVisible  = showAllFixed    ? fixed    : fixed.slice(0, LIST_CAP)
-  const varVisible    = showAllVariable ? variable : variable.slice(0, LIST_CAP)
+  const fixedTotal   = fixed.reduce((s, f) => s + f.monthlyAvgCents, 0)
+  const fixedVisible = showAllFixed    ? fixed    : fixed.slice(0, LIST_CAP)
+  const varVisible   = showAllVariable ? variable : variable.slice(0, LIST_CAP)
 
   return (
     <Card title="Fixed vs Variable Expenses">
+      {shortPeriod && (
+        <p className="mb-3 rounded bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          Fixed expense detection requires 3+ months of data — select a longer period for accurate results.
+        </p>
+      )}
+
       {/* Summary row */}
       <div className="mb-4 flex gap-4">
         <div className="flex-1 rounded-lg bg-neutral-50 p-3 text-center dark:bg-neutral-900">
@@ -308,7 +359,7 @@ function AiInsightsCard({
       {aiStatus === 'idle' && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-neutral-400 dark:text-neutral-500">
-            Ask your local AI to interpret this report.
+            Ask your AI to interpret this report.
           </p>
           <button
             onClick={onGenerate}
@@ -364,10 +415,15 @@ const FREQUENCY_LABEL: Record<RecurringItem["frequency"], string> = {
   monthly: "Monthly",
 };
 
-function RecurringCard({ items }: { items: RecurringItem[] }) {
+function RecurringCard({ items, shortPeriod }: { items: RecurringItem[]; shortPeriod: boolean }) {
   if (items.length === 0) {
     return (
       <Card title="Recurring Payments">
+        {shortPeriod && (
+          <p className="mb-2 text-xs text-amber-600 dark:text-amber-400">
+            Recurring detection works best with 3+ months of data.
+          </p>
+        )}
         <p className="text-sm text-neutral-400 dark:text-neutral-500">
           No recurring payments detected.
         </p>
@@ -410,7 +466,7 @@ function RecurringCard({ items }: { items: RecurringItem[] }) {
 function MerchantCard({ items }: { items: MerchantItem[] }) {
   if (items.length === 0) {
     return (
-      <Card title="Merchant Analysis">
+      <Card title="Top Merchants">
         <p className="text-sm text-neutral-400 dark:text-neutral-500">
           No merchant data.
         </p>
@@ -418,7 +474,7 @@ function MerchantCard({ items }: { items: MerchantItem[] }) {
     );
   }
   return (
-    <Card title="Merchant Analysis">
+    <Card title="Top Merchants">
       <ol className="space-y-1.5">
         {items.map((item, i) => (
           <li key={item.name} className="flex items-center gap-3 text-sm">
@@ -490,12 +546,23 @@ const PERIOD_OPTIONS = [
 export default function AnalystPage() {
   const { status, error, report, generate, aiInsights, aiStatus, aiError, generateInsights } = useAnalyst();
   const { can, loading: abilitiesLoading } = useAbilities();
-  const [months, setMonths] = useState(3);
+  const [months,       setMonths]       = useState(3);
+  const [customMode,   setCustomMode]   = useState(false);
+  const [customStart,  setCustomStart]  = useState('');
+  const [customEnd,    setCustomEnd]    = useState('');
 
   function handlePeriodChange(m: number) {
+    setCustomMode(false)
     setMonths(m)
     if (status === 'loaded' || status === 'loading') generate(m)
   }
+
+  function handleCustomGenerate() {
+    if (!customStart || !customEnd || customStart > customEnd) return
+    generate(0, customStart, customEnd)
+  }
+
+  const shortPeriod = !customMode && months === 1
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
@@ -518,35 +585,78 @@ export default function AnalystPage() {
       </div>
 
       {/* Period picker */}
-      <div className="mb-6 flex gap-1 rounded-lg border border-neutral-200 p-1 w-fit dark:border-neutral-700">
-        {PERIOD_OPTIONS.map(opt => (
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <div className="flex gap-1 rounded-lg border border-neutral-200 p-1 dark:border-neutral-700">
+          {PERIOD_OPTIONS.map(opt => (
+            <button
+              key={opt.months}
+              onClick={() => handlePeriodChange(opt.months)}
+              disabled={status === 'loading'}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+                !customMode && months === opt.months
+                  ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                  : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
           <button
-            key={opt.months}
-            onClick={() => handlePeriodChange(opt.months)}
+            onClick={() => setCustomMode(m => !m)}
             disabled={status === 'loading'}
             className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
-              months === opt.months
+              customMode
                 ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
                 : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
             }`}
           >
-            {opt.label}
+            Custom
           </button>
-        ))}
+        </div>
+
+        {/* Custom date inputs */}
+        {customMode && (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={customStart}
+              onChange={e => setCustomStart(e.target.value)}
+              className="rounded border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-800 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+            />
+            <span className="text-sm text-neutral-400">to</span>
+            <input
+              type="date"
+              value={customEnd}
+              onChange={e => setCustomEnd(e.target.value)}
+              className="rounded border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-800 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+            />
+            <button
+              onClick={handleCustomGenerate}
+              disabled={!customStart || !customEnd || customStart > customEnd || status === 'loading'}
+              className="rounded bg-neutral-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+            >
+              Run
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Idle — prompt to generate */}
       {status === "idle" && (
         <div className="py-12 text-center">
           <p className="mb-4 text-sm text-neutral-500">
-            Analyse the last {months} month{months !== 1 ? 's' : ''} of transactions.
+            {customMode
+              ? 'Select a date range above and click Run.'
+              : `Analyse the last ${months} month${months !== 1 ? 's' : ''} of transactions.`}
           </p>
-          <button
-            onClick={() => generate(months)}
-            className="rounded bg-neutral-900 px-6 py-2.5 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
-          >
-            Generate report
-          </button>
+          {!customMode && (
+            <button
+              onClick={() => generate(months)}
+              className="rounded bg-neutral-900 px-6 py-2.5 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+            >
+              Generate report
+            </button>
+          )}
         </div>
       )}
 
@@ -557,7 +667,7 @@ export default function AnalystPage() {
       {status === "error" && (
         <ErrorBox
           message={error ?? "Failed to load analysis."}
-          onRetry={() => generate(months)}
+          onRetry={() => customMode ? handleCustomGenerate() : generate(months)}
           retryLabel="Try again"
         />
       )}
@@ -571,6 +681,7 @@ export default function AnalystPage() {
           aiError={aiError}
           onGenerateInsights={generateInsights}
           canAi={abilitiesLoading || can('ai', 'write')}
+          shortPeriod={shortPeriod}
         />
       )}
     </div>
@@ -584,6 +695,7 @@ function Report({
   aiError,
   onGenerateInsights,
   canAi,
+  shortPeriod,
 }: {
   report: AnalystReport
   aiInsights: string | null
@@ -591,6 +703,7 @@ function Report({
   aiError: string | null
   onGenerateInsights: () => void
   canAi: boolean
+  shortPeriod: boolean
 }) {
   if (
     report.cashFlow.totalIncomeCents === 0 &&
@@ -614,13 +727,15 @@ function Report({
         />
       )}
       <CashFlowCard cf={report.cashFlow} />
+      <IncomeBreakdownCard items={report.incomeBreakdown} />
       <ExpenseBreakdownCard items={report.expenseBreakdown} />
       <FixedVariableCard
         fixed={report.fixedExpenses}
         variable={report.variableExpenses}
         variableTotalCents={report.variableTotalCents}
+        shortPeriod={shortPeriod}
       />
-      <RecurringCard items={report.recurringPayments} />
+      <RecurringCard items={report.recurringPayments} shortPeriod={shortPeriod} />
       <MerchantCard items={report.merchantAnalysis} />
       <AnomaliesCard items={report.anomalies} />
     </>
