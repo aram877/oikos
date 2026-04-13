@@ -32,6 +32,13 @@ export async function categorizeWithOllama(
   description: string,
   categoryNames: string[],
 ): Promise<string | null> {
+  // Skip silently when deployed — browser can't reach a localhost Ollama (mixed-content + CORS).
+  if (typeof window !== 'undefined') {
+    const deployed = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    const targetsLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(OLLAMA_BASE)
+    if (deployed && targetsLocalhost) return null
+  }
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS)
 
