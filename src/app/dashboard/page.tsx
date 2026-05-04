@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { dbClient } from '@/db/db.client'
-import type { TransactionListRow } from '@/db/types'
+import type { BudgetRow, CategoryRow, SavingsGoalRow, TransactionListRow } from '@/db/types'
 import { Money, useFormatMoney } from '@/lib/privacy'
 
 // ── Helpers ───────────────────────────────────────────────────────────────── //
@@ -52,6 +52,9 @@ export default function DashboardPage() {
   const [prevTransactions,  setPrevTransactions]  = useState<TransactionListRow[]>([])
   const [status,            setStatus]            = useState<'loading' | 'loaded' | 'error'>('loading')
   const [sparkData,         setSparkData]         = useState<{ key: string; expense: number }[]>([])
+  const [budgets,           setBudgets]           = useState<BudgetRow[]>([])
+  const [budgetCategories,  setBudgetCategories]  = useState<Map<string, CategoryRow>>(new Map())
+  const [goals,             setGoals]             = useState<SavingsGoalRow[]>([])
 
   // Load current + previous month together (prev is always a past month → cacheable)
   const load = useCallback(async (mk: string) => {
@@ -84,6 +87,23 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => { load(monthKey) }, [monthKey, load])
+
+  // Load budgets, categories, goals once on mount.
+  useEffect(() => {
+    Promise.all([
+      dbClient.budgets.list(),
+      dbClient.categories.list(),
+      dbClient.savingsGoals.list(),
+    ])
+      .then(([bs, cs, gs]) => {
+        setBudgets(bs)
+        const map = new Map<string, CategoryRow>()
+        for (const c of cs) map.set(c.id, c)
+        setBudgetCategories(map)
+        setGoals(gs)
+      })
+      .catch(() => {})
+  }, [])
 
   // Load 6-month sparkline once on mount
   useEffect(() => {
@@ -134,6 +154,15 @@ export default function DashboardPage() {
   const maxSpend        = categoryBreakdown[0]?.[1] ?? 1
   const maxSparkExpense = Math.max(...sparkData.map(d => d.expense), 1)
   const isCurrentMonth  = monthKey >= currentMonthKey()
+
+  const spendByCategory = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const tx of transactions) {
+      if (tx.is_transfer || tx.amount_cents >= 0 || !tx.category_id) continue
+      map.set(tx.category_id, (map.get(tx.category_id) ?? 0) + Math.abs(tx.amount_cents))
+    }
+    return map
+  }, [transactions])
 
   // ── Render ───────────────────────────────────────────────────────────── //
 
@@ -229,6 +258,87 @@ export default function DashboardPage() {
                         {label}
                       </span>
                     </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Budgets */}
+          {budgets.length > 0 && isCurrentMonth && (
+            <div className="mb-8">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  Budgets
+                </h2>
+                <Link href="/budgets" className="text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300">
+                  Manage →
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {budgets.map((b) => {
+                  const cat = budgetCategories.get(b.category_id)
+                  const spent = spendByCategory.get(b.category_id) ?? 0
+                  const pct = Math.min(100, Math.round((spent / b.amount_cents) * 100))
+                  const over = spent > b.amount_cents
+                  return (
+                    <div key={b.id} className="flex items-center gap-2 sm:gap-3">
+                      <span className="w-24 shrink-0 truncate text-sm sm:w-36">{cat?.name ?? '—'}</span>
+                      <div className="flex-1 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            over
+                              ? 'bg-red-500 dark:bg-red-400'
+                              : pct >= 80
+                                ? 'bg-amber-500 dark:bg-amber-400'
+                                : 'bg-green-500 dark:bg-green-400'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <Money
+                        cents={-spent}
+                        className={`w-20 shrink-0 text-right tabular-nums text-sm sm:w-24 ${
+                          over ? 'text-red-600 dark:text-red-400' : 'text-neutral-600 dark:text-neutral-300'
+                        }`}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Goals */}
+          {goals.length > 0 && (
+            <div className="mb-8">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  Goals
+                </h2>
+                <Link href="/goals" className="text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300">
+                  Manage →
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {goals.slice(0, 3).map((g) => {
+                  const pct = Math.min(100, Math.round((g.current_cents / g.target_cents) * 100))
+                  const done = g.current_cents >= g.target_cents
+                  return (
+                    <div key={g.id} className="flex items-center gap-2 sm:gap-3">
+                      <span className="w-24 shrink-0 truncate text-sm sm:w-36">{g.name}</span>
+                      <div className="flex-1 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            done ? 'bg-green-500 dark:bg-green-400' : 'bg-blue-500 dark:bg-blue-400'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="w-20 shrink-0 text-right text-xs text-neutral-500 sm:w-24">
+                        {pct}%
+                      </span>
+                    </div>
                   )
                 })}
               </div>
