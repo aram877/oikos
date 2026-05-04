@@ -99,6 +99,9 @@ export default function TransactionsPage() {
               Auto-categorize
             </Button>
           )}
+          <Link href="/search" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+            Search
+          </Link>
           <Link href="/analyst" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
             Analyst
           </Link>
