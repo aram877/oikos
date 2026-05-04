@@ -3,6 +3,7 @@ import { dbClient } from '@/db/db.client'
 import type { CategoryRow, TransactionListRow, MonthlySummary } from '@/db/types'
 import type { DbStatus, ListStatus } from '../_types'
 import { currentMonthKey, prevMonthKey, nextMonthKey } from '../_utils/month'
+import { generateDueRecurringTransactions } from '@/lib/recurring'
 
 // Module-level cache — persists across React renders and route navigations.
 // Past months are immutable so they can be cached indefinitely.
@@ -91,6 +92,30 @@ export function useTransactionList() {
   useEffect(() => {
     if (dbStatus !== 'ready') return
     dbClient.categories.list().then(setCategories).catch(() => {})
+  }, [dbStatus])
+
+  // Generate any due recurring transactions on first ready (run-once per session).
+  useEffect(() => {
+    if (dbStatus !== 'ready') return
+    let cancelled = false
+    const KEY = 'oikos:recurring_last_run'
+    const today = new Date().toISOString().slice(0, 10)
+    try {
+      if (sessionStorage.getItem(KEY) === today) return
+    } catch { /* ignore */ }
+    generateDueRecurringTransactions()
+      .then((created) => {
+        if (cancelled) return
+        try { sessionStorage.setItem(KEY, today) } catch { /* ignore */ }
+        if (created > 0) {
+          // Drop the cache for the current month so the new rows appear.
+          monthCache.delete(currentMonthKey())
+          loadTransactions(currentMonthKey(), true)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbStatus])
 
   const loadTransactions = useCallback(async (mk: string, bust = false) => {
