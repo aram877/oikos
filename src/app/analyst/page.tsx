@@ -6,6 +6,7 @@ import { useAnalyst } from "./_hooks/useAnalyst";
 import { useAbilities } from "@/hooks/useAbilities";
 import { StatusMsg } from "@/components/StatusMsg";
 import { ErrorBox } from "@/components/ErrorBox";
+import { Money } from "@/lib/privacy";
 import type {
   AnalystReport,
   CashFlowSummary,
@@ -17,16 +18,6 @@ import type {
   MerchantItem,
   AnomalyItem,
 } from "@/lib/analyst";
-
-// ── Shared formatter ──────────────────────────────────────────────────────── //
-
-const eurFmt = new Intl.NumberFormat("de-DE", {
-  style: "currency",
-  currency: "EUR",
-});
-function formatEur(cents: number): string {
-  return eurFmt.format(cents / 100);
-}
 
 // ── Card wrapper ──────────────────────────────────────────────────────────── //
 
@@ -61,27 +52,28 @@ function CashFlowCard({ cf }: { cf: CashFlowSummary }) {
       <div className="grid grid-cols-3 text-center text-sm">
         <div>
           <div className="mb-0.5 text-xs text-neutral-500">Income</div>
-          <div className="font-medium text-green-600 dark:text-green-400">
-            {formatEur(cf.totalIncomeCents)}
-          </div>
+          <Money
+            cents={cf.totalIncomeCents}
+            className="block font-medium text-green-600 dark:text-green-400"
+          />
         </div>
         <div>
           <div className="mb-0.5 text-xs text-neutral-500">Expenses</div>
-          <div className="font-medium text-red-600 dark:text-red-400">
-            {formatEur(cf.totalExpenseCents)}
-          </div>
+          <Money
+            cents={cf.totalExpenseCents}
+            className="block font-medium text-red-600 dark:text-red-400"
+          />
         </div>
         <div>
           <div className="mb-0.5 text-xs text-neutral-500">Net</div>
-          <div
-            className={`font-semibold ${
+          <Money
+            cents={cf.netCents}
+            className={`block font-semibold ${
               cf.netCents >= 0
                 ? "text-green-600 dark:text-green-400"
                 : "text-red-600 dark:text-red-400"
             }`}
-          >
-            {formatEur(cf.netCents)}
-          </div>
+          />
         </div>
       </div>
 
@@ -106,7 +98,7 @@ function CashFlowCard({ cf }: { cf: CashFlowSummary }) {
             <span>
               {cf.transferCount} transfer{cf.transferCount !== 1 ? "s" : ""} excluded from income/expense totals
               {' · '}
-              <span className="tabular-nums">{formatEur(transferTotal)}</span>
+              <Money cents={transferTotal} className="tabular-nums" />
             </span>
             <span>{open ? '▲' : '▼'}</span>
           </button>
@@ -122,7 +114,7 @@ function CashFlowCard({ cf }: { cf: CashFlowSummary }) {
                   >
                     <span className="w-24 shrink-0 tabular-nums text-neutral-400">{tx.date}</span>
                     <span className="min-w-0 flex-1 truncate text-neutral-500">{tx.description}</span>
-                    <span className="tabular-nums text-neutral-500">{formatEur(tx.amount_cents)}</span>
+                    <Money cents={tx.amount_cents} className="tabular-nums text-neutral-500" />
                   </Link>
                 </li>
               ))}
@@ -153,7 +145,7 @@ function IncomeBreakdownCard({ items }: { items: IncomeBreakdownItem[] }) {
             <tr key={item.category} className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
               <td className="py-1.5 pr-3 text-neutral-800 dark:text-neutral-200">{item.category}</td>
               <td className="py-1.5 pr-3 text-right tabular-nums font-medium text-green-600 dark:text-green-400">
-                {formatEur(item.totalCents)}
+                <Money cents={item.totalCents} />
               </td>
               <td className="py-1.5 w-32">
                 <div className="relative h-2 rounded bg-neutral-100 dark:bg-neutral-800">
@@ -196,7 +188,7 @@ function ExpenseBreakdownCard({ items }: { items: ExpenseBreakdownItem[] }) {
                   {item.category}
                 </td>
                 <td className="py-1.5 pr-3 text-right tabular-nums font-medium text-neutral-800 dark:text-neutral-200">
-                  {formatEur(item.totalCents)}
+                  <Money cents={item.totalCents} />
                 </td>
                 <td className="py-1.5 w-32">
                   <div className="relative h-2 rounded bg-neutral-100 dark:bg-neutral-800">
@@ -220,7 +212,7 @@ function ExpenseBreakdownCard({ items }: { items: ExpenseBreakdownItem[] }) {
                     {sub.name}
                   </td>
                   <td className="py-1 pr-3 text-right tabular-nums text-neutral-500 dark:text-neutral-400">
-                    {formatEur(sub.totalCents)}
+                    <Money cents={sub.totalCents} />
                   </td>
                   <td />
                 </tr>
@@ -267,15 +259,17 @@ function FixedVariableCard({
       <div className="mb-4 flex gap-4">
         <div className="flex-1 rounded-lg bg-neutral-50 p-3 text-center dark:bg-neutral-900">
           <div className="text-xs text-neutral-500">Fixed /mo</div>
-          <div className="mt-1 font-semibold text-neutral-800 dark:text-neutral-200">
-            {formatEur(fixedTotal)}
-          </div>
+          <Money
+            cents={fixedTotal}
+            className="block mt-1 font-semibold text-neutral-800 dark:text-neutral-200"
+          />
         </div>
         <div className="flex-1 rounded-lg bg-neutral-50 p-3 text-center dark:bg-neutral-900">
           <div className="text-xs text-neutral-500">Variable (period)</div>
-          <div className="mt-1 font-semibold text-neutral-800 dark:text-neutral-200">
-            {formatEur(variableTotalCents)}
-          </div>
+          <Money
+            cents={variableTotalCents}
+            className="block mt-1 font-semibold text-neutral-800 dark:text-neutral-200"
+          />
         </div>
       </div>
 
@@ -292,7 +286,7 @@ function FixedVariableCard({
               <li key={item.name} className="flex justify-between text-sm">
                 <span className="truncate text-neutral-700 dark:text-neutral-300">{item.name}</span>
                 <span className="ml-4 shrink-0 tabular-nums text-neutral-500">
-                  {formatEur(item.monthlyAvgCents)}/mo
+                  <Money cents={item.monthlyAvgCents} />/mo
                 </span>
               </li>
             ))}
@@ -321,7 +315,7 @@ function FixedVariableCard({
               <li key={item.name} className="flex justify-between text-sm">
                 <span className="truncate text-neutral-700 dark:text-neutral-300">{item.name}</span>
                 <span className="ml-4 shrink-0 tabular-nums text-neutral-500">
-                  {formatEur(item.totalCents)}
+                  <Money cents={item.totalCents} />
                   <span className="ml-1 text-xs text-neutral-400">×{item.count}</span>
                 </span>
               </li>
@@ -447,9 +441,10 @@ function RecurringCard({ items, shortPeriod }: { items: RecurringItem[]; shortPe
               </span>
             </div>
             <div className="ml-4 shrink-0 text-right">
-              <span className="tabular-nums text-neutral-700 dark:text-neutral-300">
-                {formatEur(item.avgAmountCents)}
-              </span>
+              <Money
+                cents={item.avgAmountCents}
+                className="tabular-nums text-neutral-700 dark:text-neutral-300"
+              />
               <span className="ml-2 text-xs text-neutral-400">
                 next {item.nextExpectedDate}
               </span>
@@ -484,9 +479,10 @@ function MerchantCard({ items }: { items: MerchantItem[] }) {
             <span className="flex-1 truncate text-neutral-700 dark:text-neutral-300">
               {item.name}
             </span>
-            <span className="shrink-0 tabular-nums text-neutral-700 dark:text-neutral-300">
-              {formatEur(item.totalCents)}
-            </span>
+            <Money
+              cents={item.totalCents}
+              className="shrink-0 tabular-nums text-neutral-700 dark:text-neutral-300"
+            />
             <span className="shrink-0 text-xs text-neutral-400">
               {item.txCount} tx
             </span>
@@ -517,9 +513,10 @@ function AnomaliesCard({ items }: { items: AnomalyItem[] }) {
                     {item.description}
                   </span>
                 </div>
-                <span className="shrink-0 tabular-nums text-neutral-700 dark:text-neutral-300">
-                  {formatEur(item.amountCents)}
-                </span>
+                <Money
+                  cents={item.amountCents}
+                  className="shrink-0 tabular-nums text-neutral-700 dark:text-neutral-300"
+                />
               </div>
               <span className="mt-0.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-300">
                 {item.reason}

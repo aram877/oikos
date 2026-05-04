@@ -4,9 +4,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { useAccountBalance } from '@/hooks/useAccountBalance'
 import { Card, CardContent } from '@/components/ui/card'
-
-const eurFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
-function formatEur(cents: number) { return eurFmt.format(cents / 100) }
+import { Money } from '@/lib/privacy'
 
 export default function AccountsPage() {
   const { balance, status, error } = useAccountBalance()
@@ -39,9 +37,10 @@ export default function AccountsPage() {
             <Card>
               <CardContent className="py-4 px-5">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Checking</div>
-                <div className={`text-2xl font-bold tabular-nums ${balance.balance_cents >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}>
-                  {formatEur(balance.balance_cents)}
-                </div>
+                <Money
+                  cents={balance.balance_cents}
+                  className={`block text-2xl font-bold tabular-nums ${balance.balance_cents >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}
+                />
                 <p className="mt-1 text-xs text-muted-foreground">Sum of all transactions</p>
               </CardContent>
             </Card>
@@ -49,9 +48,10 @@ export default function AccountsPage() {
             <Card>
               <CardContent className="py-4 px-5">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Savings (est.)</div>
-                <div className="text-2xl font-bold tabular-nums text-foreground">
-                  {formatEur(-balance.transfers_cents)}
-                </div>
+                <Money
+                  cents={-balance.transfers_cents}
+                  className="block text-2xl font-bold tabular-nums text-foreground"
+                />
                 <p className="mt-1 text-xs text-muted-foreground">Net of internal transfers</p>
               </CardContent>
             </Card>
@@ -59,9 +59,10 @@ export default function AccountsPage() {
             <Card className="sm:col-span-1">
               <CardContent className="py-4 px-5">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Net worth</div>
-                <div className={`text-2xl font-bold tabular-nums ${balance.cashflow_cents >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {formatEur(balance.cashflow_cents)}
-                </div>
+                <Money
+                  cents={balance.cashflow_cents}
+                  className={`block text-2xl font-bold tabular-nums ${balance.cashflow_cents >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                />
                 <p className="mt-1 text-xs text-muted-foreground">Checking + savings</p>
               </CardContent>
             </Card>
@@ -74,23 +75,25 @@ export default function AccountsPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total income (all time)</span>
-                  <span className="tabular-nums text-green-700 dark:text-green-400">
-                    {formatEur(Math.max(0, balance.cashflow_cents - Math.min(0, balance.cashflow_cents)))}
-                  </span>
+                  <Money
+                    cents={Math.max(0, balance.cashflow_cents - Math.min(0, balance.cashflow_cents))}
+                    className="tabular-nums text-green-700 dark:text-green-400"
+                  />
                 </div>
                 <div className="flex justify-between border-t border-border pt-2">
                   <span className="text-muted-foreground">Checking balance</span>
-                  <span className="tabular-nums font-medium">{formatEur(balance.balance_cents)}</span>
+                  <Money cents={balance.balance_cents} className="tabular-nums font-medium" />
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Net transferred to savings</span>
-                  <span className="tabular-nums font-medium">{formatEur(-balance.transfers_cents)}</span>
+                  <Money cents={-balance.transfers_cents} className="tabular-nums font-medium" />
                 </div>
                 <div className="flex justify-between border-t border-border pt-2 font-semibold">
                   <span>Net worth</span>
-                  <span className={`tabular-nums ${balance.cashflow_cents >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {formatEur(balance.cashflow_cents)}
-                  </span>
+                  <Money
+                    cents={balance.cashflow_cents}
+                    className={`tabular-nums ${balance.cashflow_cents >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  />
                 </div>
               </div>
               <p className="text-xs text-muted-foreground pt-1">

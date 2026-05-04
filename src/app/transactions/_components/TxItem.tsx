@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { TransactionListRow } from "@/db/types";
-import { formatEur } from "../_utils/currency";
+import { Money } from "@/lib/privacy";
 import { Badge } from "@/components/ui/badge";
 
 export function TxItem({ tx }: { tx: TransactionListRow }) {
@@ -21,9 +21,7 @@ export function TxItem({ tx }: { tx: TransactionListRow }) {
             {tx.description}
           </span>
           <Badge variant="secondary" className="shrink-0 text-xs">Transfer</Badge>
-          <span className="tabular-nums font-medium text-muted-foreground">
-            {formatEur(tx.amount_cents)}
-          </span>
+          <Money cents={tx.amount_cents} className="tabular-nums font-medium text-muted-foreground" />
         </Link>
       </li>
     );
@@ -52,15 +50,14 @@ export function TxItem({ tx }: { tx: TransactionListRow }) {
             </Badge>
           )}
         </div>
-        <span
+        <Money
+          cents={tx.amount_cents}
           className={`tabular-nums font-semibold shrink-0 ${
             isIncome
               ? "text-green-700 dark:text-green-400"
               : "text-red-600 dark:text-red-400"
           }`}
-        >
-          {formatEur(tx.amount_cents)}
-        </span>
+        />
       </Link>
     </li>
   );
