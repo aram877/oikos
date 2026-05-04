@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 const VALID_GROQ_MODELS   = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it']
 const DEFAULT_GROQ_MODEL  = 'llama-3.3-70b-versatile'
 const VALID_CLAUDE_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6']
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
+
+const Body = z.object({
+  description:   z.string().min(1).max(500),
+  categoryNames: z.array(z.string().min(1).max(100)).min(1).max(200),
+})
 
 function buildPrompt(description: string, categoryNames: string[]): string {
   return `You are a financial transaction categorizer.
@@ -34,17 +40,11 @@ export async function POST(req: NextRequest) {
   const modelHeader = req.headers.get('x-ai-model') ?? ''
 
   // 3. Body
-  let description: string, categoryNames: string[]
-  try {
-    const body = await req.json()
-    if (typeof body?.description !== 'string' || !Array.isArray(body?.categoryNames)) {
-      throw new Error('invalid body')
-    }
-    description   = body.description as string
-    categoryNames = body.categoryNames as string[]
-  } catch {
+  const parsed = Body.safeParse(await req.json().catch(() => null))
+  if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
+  const { description, categoryNames } = parsed.data
 
   const prompt = buildPrompt(description, categoryNames)
 
