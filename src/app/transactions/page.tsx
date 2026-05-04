@@ -109,6 +109,9 @@ export default function TransactionsPage() {
           <Link href="/goals" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
             Goals
           </Link>
+          <Link href="/recurring" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+            Recurring
+          </Link>
           <Link href="/analyst" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
             Analyst
           </Link>

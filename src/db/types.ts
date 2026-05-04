@@ -375,3 +375,48 @@ export interface UpdateSavingsGoalInput {
   current_cents?: number
   target_date?:   string | null
 }
+
+// ── Recurring transaction types ──────────────────────────────────────────── //
+
+export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly' | 'yearly'
+
+export interface RecurringTransactionRow {
+  id:             string
+  account_id:     string
+  category_id:    string | null
+  description:    string
+  notes:          string | null
+  amount_cents:   number
+  is_transfer:    boolean
+  frequency:      RecurringFrequency
+  start_date:     string
+  next_run_date:  string
+  end_date:       string | null
+  paused:         boolean
+  created_at:     string
+  updated_at:     string
+  deleted_at:     string | null
+}
+
+export interface InsertRecurringTransactionInput {
+  category_id:   string | null
+  description:   string
+  notes?:        string | null
+  amount_cents:  number
+  is_transfer?:  boolean
+  frequency:     RecurringFrequency
+  start_date:    string
+  end_date?:     string | null
+}
+
+export interface UpdateRecurringTransactionInput {
+  category_id?:  string | null
+  description?:  string
+  notes?:        string | null
+  amount_cents?: number
+  is_transfer?:  boolean
+  frequency?:    RecurringFrequency
+  end_date?:     string | null
+  paused?:       boolean
+  next_run_date?: string
+}

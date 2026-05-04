@@ -51,12 +51,16 @@ import type {
   SavingsGoalRow,
   InsertSavingsGoalInput,
   UpdateSavingsGoalInput,
+  RecurringTransactionRow,
+  InsertRecurringTransactionInput,
+  UpdateRecurringTransactionInput,
 } from './types'
 import type { ListMessagesOptions, ConversationPreview } from './repositories/messagesRepo'
 
 import * as accountRepo              from './repositories/accountRepo'
 import * as budgetsRepo              from './repositories/budgetsRepo'
 import * as savingsGoalsRepo         from './repositories/savingsGoalsRepo'
+import * as recurringTransactionsRepo from './repositories/recurringTransactionsRepo'
 import * as categorizationRulesRepo from './repositories/categorizationRulesRepo'
 import * as categoryRepo    from './repositories/categoryRepo'
 import * as transactionRepo from './repositories/transactionRepo'
@@ -168,6 +172,14 @@ export const dbClient = {
     insert:     (input: InsertSavingsGoalInput):             Promise<SavingsGoalRow>        => savingsGoalsRepo.insertGoal(input),
     update:     (id: string, input: UpdateSavingsGoalInput): Promise<SavingsGoalRow | null> => savingsGoalsRepo.updateGoal(id, input),
     softDelete: (id: string):                                Promise<void>                  => savingsGoalsRepo.softDeleteGoal(id),
+  },
+
+  recurringTransactions: {
+    list:       ():                                                                    Promise<RecurringTransactionRow[]>      => recurringTransactionsRepo.listRecurring(),
+    listDue:    (today: string):                                                        Promise<RecurringTransactionRow[]>      => recurringTransactionsRepo.listDue(today),
+    insert:     (input: InsertRecurringTransactionInput):                              Promise<RecurringTransactionRow>        => recurringTransactionsRepo.insertRecurring(input),
+    update:     (id: string, input: UpdateRecurringTransactionInput):                  Promise<RecurringTransactionRow | null> => recurringTransactionsRepo.updateRecurring(id, input),
+    softDelete: (id: string):                                                          Promise<void>                           => recurringTransactionsRepo.softDeleteRecurring(id),
   },
 
   messages: {
