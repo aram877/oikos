@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { dbClient } from '@/db/db.client'
 import type { TransactionListRow } from '@/db/types'
-import { formatEur } from '@/app/transactions/_utils/currency'
+import { Money, useFormatMoney } from '@/lib/privacy'
 
 // ── Helpers ───────────────────────────────────────────────────────────────── //
 
@@ -45,6 +45,7 @@ const dashboardCache = new Map<string, TransactionListRow[]>()
 // ── Page ──────────────────────────────────────────────────────────────────── //
 
 export default function DashboardPage() {
+  const fmtMoney = useFormatMoney()
   const todayKey = currentMonthKey()
   const [monthKey,          setMonthKey]          = useState(todayKey)
   const [transactions,      setTransactions]      = useState<TransactionListRow[]>([])
@@ -212,7 +213,7 @@ export default function DashboardPage() {
                       key={key}
                       onClick={() => { if (key <= currentMonthKey()) setMonthKey(key) }}
                       className="flex flex-1 flex-col items-center justify-end gap-1 h-full hover:opacity-75 transition-opacity"
-                      title={`${formatMonthLabel(key)}: ${formatEur(expense)}`}
+                      title={`${formatMonthLabel(key)}: ${fmtMoney(expense)}`}
                     >
                       <div
                         className={`w-full rounded-t-sm transition-all ${
@@ -250,9 +251,10 @@ export default function DashboardPage() {
                         style={{ width: `${Math.round((cents / maxSpend) * 100)}%` }}
                       />
                     </div>
-                    <span className="w-20 shrink-0 text-right tabular-nums text-sm text-red-600 dark:text-red-400 sm:w-24">
-                      {formatEur(-cents)}
-                    </span>
+                    <Money
+                      cents={-cents}
+                      className="w-20 shrink-0 text-right tabular-nums text-sm text-red-600 dark:text-red-400 sm:w-24"
+                    />
                   </div>
                 ))}
               </div>
@@ -308,9 +310,11 @@ function SummaryCard({ label, value, color, signed, delta, deltaGoodWhenPositive
   return (
     <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
       <p className="mb-1 text-xs text-neutral-400">{label}</p>
-      <p className={`text-base font-semibold tabular-nums ${colorClass}`}>
-        {signed && value > 0 ? '+' : ''}{formatEur(value)}
-      </p>
+      <Money
+        cents={value}
+        signed={signed}
+        className={`block text-base font-semibold tabular-nums ${colorClass}`}
+      />
       {delta !== null && delta !== undefined && isFinite(delta) && (
         <p className={`mt-0.5 text-xs tabular-nums ${deltaColor}`}>
           {delta > 0 ? '+' : ''}{Math.round(delta)}% vs prev

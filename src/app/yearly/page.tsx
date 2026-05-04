@@ -10,11 +10,7 @@ import { useAccountBalance } from '@/hooks/useAccountBalance'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-
-// ── Formatter ─────────────────────────────────────────────────────────────── //
-
-const eurFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
-function formatEur(cents: number) { return eurFmt.format(cents / 100) }
+import { Money } from '@/lib/privacy'
 
 // ── Page ──────────────────────────────────────────────────────────────────── //
 
@@ -76,25 +72,28 @@ export default function YearlyPage() {
           <Card>
             <CardContent className="py-3 px-4 text-center">
               <div className="text-xs text-muted-foreground mb-1">Checking</div>
-              <div className={`text-base font-semibold tabular-nums ${balance.balance_cents >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}>
-                {formatEur(balance.balance_cents)}
-              </div>
+              <Money
+                cents={balance.balance_cents}
+                className={`block text-base font-semibold tabular-nums ${balance.balance_cents >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}
+              />
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-3 px-4 text-center">
               <div className="text-xs text-muted-foreground mb-1">Savings (est.)</div>
-              <div className="text-base font-semibold tabular-nums text-foreground">
-                {formatEur(-balance.transfers_cents)}
-              </div>
+              <Money
+                cents={-balance.transfers_cents}
+                className="block text-base font-semibold tabular-nums text-foreground"
+              />
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-3 px-4 text-center">
               <div className="text-xs text-muted-foreground mb-1">Net worth</div>
-              <div className={`text-base font-bold tabular-nums ${balance.cashflow_cents >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {formatEur(balance.cashflow_cents)}
-              </div>
+              <Money
+                cents={balance.cashflow_cents}
+                className={`block text-base font-bold tabular-nums ${balance.cashflow_cents >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+              />
             </CardContent>
           </Card>
         </div>
@@ -160,15 +159,15 @@ export default function YearlyPage() {
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-green-700 dark:text-green-400">
-                    {m.incomeCents > 0 ? formatEur(m.incomeCents) : '—'}
+                    {m.incomeCents > 0 ? <Money cents={m.incomeCents} /> : '—'}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-red-600 dark:text-red-400">
-                    {m.expenseCents < 0 ? formatEur(m.expenseCents) : '—'}
+                    {m.expenseCents < 0 ? <Money cents={m.expenseCents} /> : '—'}
                   </td>
                   <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${
                     m.netCents >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}>
-                    {m.txCount > 0 ? formatEur(m.netCents) : '—'}
+                    {m.txCount > 0 ? <Money cents={m.netCents} /> : '—'}
                   </td>
                 </tr>
               ))}
@@ -177,15 +176,15 @@ export default function YearlyPage() {
               <tr>
                 <td className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">Total</td>
                 <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-green-700 dark:text-green-400">
-                  {formatEur(summary.totalIncome)}
+                  <Money cents={summary.totalIncome} />
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-red-600 dark:text-red-400">
-                  {formatEur(summary.totalExpense)}
+                  <Money cents={summary.totalExpense} />
                 </td>
                 <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${
                   summary.totalNet >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                 }`}>
-                  {formatEur(summary.totalNet)}
+                  <Money cents={summary.totalNet} />
                 </td>
               </tr>
             </tfoot>

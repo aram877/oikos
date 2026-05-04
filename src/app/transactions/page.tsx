@@ -9,7 +9,7 @@ import { useAutoCategorize } from "./_hooks/useAutoCategorize";
 import { TxItem } from "./_components/TxItem";
 import { FilterBar } from "./_components/FilterBar";
 import { formatMonthLabel } from "./_utils/month";
-import { formatEur } from "./_utils/currency";
+import { Money } from "@/lib/privacy";
 import { ErrorBox } from "@/components/ErrorBox";
 import { StatusMsg } from "@/components/StatusMsg";
 import { useAbilities } from "@/hooks/useAbilities";
@@ -323,31 +323,32 @@ function SummaryBar({
         <Card>
           <CardContent className="py-3 px-4 text-center">
             <div className="text-xs text-muted-foreground mb-1">Income</div>
-            <div className="text-base font-semibold text-green-700 dark:text-green-400 tabular-nums">
-              {formatEur(summary.total_income_cents)}
-            </div>
+            <Money
+              cents={summary.total_income_cents}
+              className="block text-base font-semibold text-green-700 dark:text-green-400 tabular-nums"
+            />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-3 px-4 text-center">
             <div className="text-xs text-muted-foreground mb-1">Expenses</div>
-            <div className="text-base font-semibold text-red-600 dark:text-red-400 tabular-nums">
-              {formatEur(summary.total_expense_cents)}
-            </div>
+            <Money
+              cents={summary.total_expense_cents}
+              className="block text-base font-semibold text-red-600 dark:text-red-400 tabular-nums"
+            />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-3 px-4 text-center">
             <div className="text-xs text-muted-foreground mb-1">Net</div>
-            <div
-              className={`text-base font-bold tabular-nums ${
+            <Money
+              cents={summary.net_cents}
+              className={`block text-base font-bold tabular-nums ${
                 summary.net_cents >= 0
                   ? "text-green-700 dark:text-green-400"
                   : "text-red-600 dark:text-red-400"
               }`}
-            >
-              {formatEur(summary.net_cents)}
-            </div>
+            />
           </CardContent>
         </Card>
       </div>
@@ -363,7 +364,7 @@ function SummaryBar({
               {transfers.length} transfer{transfers.length !== 1 ? "s" : ""}{" "}
               excluded
               {" · "}
-              <span className="tabular-nums">{formatEur(transferTotal)}</span>
+              <Money cents={transferTotal} className="tabular-nums" />
             </span>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true">
               <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
@@ -387,9 +388,7 @@ function SummaryBar({
                         <span className="min-w-0 flex-1 truncate text-muted-foreground">
                           {tx.description}
                         </span>
-                        <span className="tabular-nums text-muted-foreground">
-                          {formatEur(tx.amount_cents)}
-                        </span>
+                        <Money cents={tx.amount_cents} className="tabular-nums text-muted-foreground" />
                       </Link>
                     </li>
                   ))}
