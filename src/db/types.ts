@@ -347,3 +347,31 @@ export interface UpsertBudgetInput {
   category_id:  string
   amount_cents: number
 }
+
+// ── Savings goal types ────────────────────────────────────────────────────── //
+
+export interface SavingsGoalRow {
+  id:            string
+  account_id:    string
+  name:          string
+  target_cents:  number
+  current_cents: number
+  target_date:   string | null
+  created_at:    string
+  updated_at:    string
+  deleted_at:    string | null
+}
+
+export interface InsertSavingsGoalInput {
+  name:          string
+  target_cents:  number
+  current_cents?: number
+  target_date?:  string | null
+}
+
+export interface UpdateSavingsGoalInput {
+  name?:          string
+  target_cents?:  number
+  current_cents?: number
+  target_date?:   string | null
+}

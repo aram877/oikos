@@ -48,11 +48,15 @@ import type {
   InsertCategorizationRuleInput,
   BudgetRow,
   UpsertBudgetInput,
+  SavingsGoalRow,
+  InsertSavingsGoalInput,
+  UpdateSavingsGoalInput,
 } from './types'
 import type { ListMessagesOptions, ConversationPreview } from './repositories/messagesRepo'
 
 import * as accountRepo              from './repositories/accountRepo'
 import * as budgetsRepo              from './repositories/budgetsRepo'
+import * as savingsGoalsRepo         from './repositories/savingsGoalsRepo'
 import * as categorizationRulesRepo from './repositories/categorizationRulesRepo'
 import * as categoryRepo    from './repositories/categoryRepo'
 import * as transactionRepo from './repositories/transactionRepo'
@@ -157,6 +161,13 @@ export const dbClient = {
     list:   ():                          Promise<BudgetRow[]> => budgetsRepo.listBudgets(),
     upsert: (input: UpsertBudgetInput):  Promise<BudgetRow>   => budgetsRepo.upsertBudget(input),
     delete: (id: string):                Promise<void>        => budgetsRepo.deleteBudget(id),
+  },
+
+  savingsGoals: {
+    list:       ():                                          Promise<SavingsGoalRow[]>      => savingsGoalsRepo.listGoals(),
+    insert:     (input: InsertSavingsGoalInput):             Promise<SavingsGoalRow>        => savingsGoalsRepo.insertGoal(input),
+    update:     (id: string, input: UpdateSavingsGoalInput): Promise<SavingsGoalRow | null> => savingsGoalsRepo.updateGoal(id, input),
+    softDelete: (id: string):                                Promise<void>                  => savingsGoalsRepo.softDeleteGoal(id),
   },
 
   messages: {
