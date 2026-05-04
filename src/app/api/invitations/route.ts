@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { z } from 'zod'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient }  from '@supabase/supabase-js'
 import { INVITABLE_ROLES, getDefaultAccessLevels, type Role } from '@/lib/abilities'
+
+const InviteBody = z.object({
+  email: z.string().trim().toLowerCase().email('Invalid email address.'),
+  role:  z.enum(INVITABLE_ROLES as readonly [Role, ...Role[]]),
+})
 
 export async function GET() {
   const supabase = await createServerClient()
@@ -77,24 +83,14 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 2. Parse body ────────────────────────────────────────────────────────── //
-  let email: string
-  let role: Role
-  try {
-    const body = await request.json() as { email?: string; role?: string }
-    if (typeof body.email !== 'string' || !body.email.includes('@')) {
-      throw new Error('invalid email')
-    }
-    if (!body.role || !(INVITABLE_ROLES as ReadonlyArray<string>).includes(body.role)) {
-      throw new Error(`role must be one of: ${INVITABLE_ROLES.join(', ')}`)
-    }
-    email = body.email
-    role  = body.role as Role
-  } catch (e: unknown) {
+  const parsed = InviteBody.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Invalid request body' },
+      { error: parsed.error.issues[0]?.message ?? 'Invalid request body' },
       { status: 400 },
     )
   }
+  const { email, role } = parsed.data
 
   // ── 3. Resolve caller's account and verify admin role ────────────────────── //
   const { data: membership, error: memberErr } = await supabase

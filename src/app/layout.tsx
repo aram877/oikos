@@ -9,6 +9,7 @@ import ThemeToggle       from '@/components/ThemeToggle'
 import PrivacyToggle     from '@/components/PrivacyToggle'
 import PwaInit           from '@/components/PwaInit'
 import OikosLogo         from '@/components/OikosLogo'
+import ErrorBoundary     from '@/components/ErrorBoundary'
 import { PrivacyProvider } from '@/lib/privacy'
 
 const geistSans = Geist({
@@ -82,7 +83,7 @@ export default async function RootLayout({
               </div>
             </header>
           )}
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
           <PwaInit />
         </PrivacyProvider>
       </body>

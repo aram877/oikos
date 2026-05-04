@@ -12,6 +12,7 @@ import { formatMonthLabel } from "./_utils/month";
 import { Money } from "@/lib/privacy";
 import { ErrorBox } from "@/components/ErrorBox";
 import { StatusMsg } from "@/components/StatusMsg";
+import { SummaryCardsSkeleton, TransactionRowSkeleton } from "@/components/Skeleton";
 import { useAbilities } from "@/hooks/useAbilities";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -193,7 +194,18 @@ export default function TransactionsPage() {
 
       {/* List loading */}
       {dbStatus === "ready" && listStatus === "loading" && (
-        <StatusMsg>Loading…</StatusMsg>
+        <>
+          <SummaryCardsSkeleton />
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <TransactionRowSkeleton key={i} />
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {/* List error */}
