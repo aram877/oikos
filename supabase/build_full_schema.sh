@@ -55,6 +55,9 @@ migrations=(
   "supabase/alter_categorization_rules_amount_range.sql"
   "supabase/alter_categorization_rules_add_note.sql"
   "supabase/add_get_account_balance_fn.sql"
+
+  # 2026-05-04 — budgets
+  "supabase/add_budgets.sql"
 )
 
 {

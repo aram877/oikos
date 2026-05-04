@@ -103,6 +103,9 @@ export default function TransactionsPage() {
           <Link href="/search" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
             Search
           </Link>
+          <Link href="/budgets" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+            Budgets
+          </Link>
           <Link href="/analyst" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
             Analyst
           </Link>

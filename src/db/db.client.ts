@@ -46,10 +46,13 @@ import type {
   InsertMessageInput,
   CategorizationRuleRow,
   InsertCategorizationRuleInput,
+  BudgetRow,
+  UpsertBudgetInput,
 } from './types'
 import type { ListMessagesOptions, ConversationPreview } from './repositories/messagesRepo'
 
 import * as accountRepo              from './repositories/accountRepo'
+import * as budgetsRepo              from './repositories/budgetsRepo'
 import * as categorizationRulesRepo from './repositories/categorizationRulesRepo'
 import * as categoryRepo    from './repositories/categoryRepo'
 import * as transactionRepo from './repositories/transactionRepo'
@@ -148,6 +151,12 @@ export const dbClient = {
     list:   ():                                       Promise<CategorizationRuleRow[]> => categorizationRulesRepo.listRules(),
     insert: (input: InsertCategorizationRuleInput):   Promise<CategorizationRuleRow>   => categorizationRulesRepo.insertRule(input),
     delete: (id: string):                             Promise<void>                    => categorizationRulesRepo.deleteRule(id),
+  },
+
+  budgets: {
+    list:   ():                          Promise<BudgetRow[]> => budgetsRepo.listBudgets(),
+    upsert: (input: UpsertBudgetInput):  Promise<BudgetRow>   => budgetsRepo.upsertBudget(input),
+    delete: (id: string):                Promise<void>        => budgetsRepo.deleteBudget(id),
   },
 
   messages: {

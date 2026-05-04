@@ -331,3 +331,19 @@ export interface InsertCategorizationRuleInput {
   category_id:          string
   note:                 string | null
 }
+
+// ── Budget types ──────────────────────────────────────────────────────────── //
+
+export interface BudgetRow {
+  id:           string
+  account_id:   string
+  category_id:  string
+  amount_cents: number  // positive = monthly cap on |spend|
+  created_at:   string
+  updated_at:   string
+}
+
+export interface UpsertBudgetInput {
+  category_id:  string
+  amount_cents: number
+}
