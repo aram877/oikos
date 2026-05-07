@@ -66,6 +66,9 @@ migrations=(
 
   # 2026-05-07 — receipts on transactions
   "supabase/add_transaction_receipts.sql"
+
+  # 2026-05-07 — subscription tracker
+  "supabase/add_subscriptions.sql"
 )
 
 {
