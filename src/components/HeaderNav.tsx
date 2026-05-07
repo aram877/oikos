@@ -16,9 +16,10 @@ const NAV: NavEntry[] = [
     kind:  'group',
     label: 'Finance',
     items: [
-      { href: '/yearly',       label: 'Yearly'   },
-      { href: '/transactions', label: 'Monthly'  },
-      { href: '/accounts',     label: 'Balances' },
+      { href: '/yearly',         label: 'Yearly'   },
+      { href: '/transactions',   label: 'Monthly'  },
+      { href: '/accounts',       label: 'Balances' },
+      { href: '/subscriptions',  label: 'Subscriptions' },
     ],
   },
   {

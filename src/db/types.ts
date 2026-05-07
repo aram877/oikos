@@ -18,19 +18,20 @@ export interface CategoryRow {
 }
 
 export interface TransactionRow {
-  id:           string
-  account_id:   string
-  category_id:  string | null // NULL = uncategorized
-  amount_cents: number        // negative = expense, positive = income
-  currency:     string        // always 'EUR' in MVP
-  date:         string        // YYYY-MM-DD
-  description:  string
-  notes:        string | null
-  import_hash:  string | null // opaque dedup key set by CSV importer
-  is_transfer:  boolean       // true = internal transfer, excluded from income/expense summaries
-  created_at:   string        // ISO-8601 datetime
-  updated_at:   string        // ISO-8601 datetime
-  deleted_at:   string | null
+  id:              string
+  account_id:      string
+  category_id:     string | null // NULL = uncategorized
+  amount_cents:    number        // negative = expense, positive = income
+  currency:        string        // always 'EUR' in MVP
+  date:            string        // YYYY-MM-DD
+  description:     string
+  notes:           string | null
+  import_hash:     string | null // opaque dedup key set by CSV importer
+  is_transfer:     boolean       // true = internal transfer, excluded from income/expense summaries
+  subscription_id: string | null // optional link to a subscription
+  created_at:      string        // ISO-8601 datetime
+  updated_at:      string        // ISO-8601 datetime
+  deleted_at:      string | null
 }
 
 /** TransactionRow enriched with joined category fields — returned by list queries. */
@@ -438,4 +439,70 @@ export interface UpdateRecurringTransactionInput {
   end_date?:     string | null
   paused?:       boolean
   next_run_date?: string
+}
+
+// ── Subscriptions ─────────────────────────────────────────────────────────── //
+
+export type SubscriptionCadence =
+  | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
+
+export interface SubscriptionRow {
+  id:                    string
+  account_id:            string
+  name:                  string
+  vendor:                string | null
+  category_id:           string | null
+  expected_amount_cents: number | null   // signed; usually negative
+  cadence:               SubscriptionCadence
+  notes:                 string | null
+  started_on:            string | null   // YYYY-MM-DD
+  cancelled_on:          string | null   // YYYY-MM-DD; NULL = active
+  created_at:            string
+  updated_at:            string
+  deleted_at:            string | null
+}
+
+export interface InsertSubscriptionInput {
+  name:                   string
+  vendor?:                string | null
+  category_id?:           string | null
+  expected_amount_cents?: number | null
+  cadence:                SubscriptionCadence
+  notes?:                 string | null
+  started_on?:            string | null
+}
+
+export interface UpdateSubscriptionInput {
+  name?:                  string
+  vendor?:                string | null
+  category_id?:           string | null
+  expected_amount_cents?: number | null
+  cadence?:               SubscriptionCadence
+  notes?:                 string | null
+  started_on?:            string | null
+  cancelled_on?:          string | null
+}
+
+export interface SubscriptionMatchPatternRow {
+  id:                   string
+  subscription_id:      string
+  description_contains: string
+  amount_min_cents:     number | null
+  amount_max_cents:     number | null
+  created_at:           string
+}
+
+export interface InsertSubscriptionMatchPatternInput {
+  subscription_id:      string
+  description_contains: string
+  amount_min_cents?:    number | null
+  amount_max_cents?:    number | null
+}
+
+/** Aggregated spend within a window — returned by the get_subscription_spend RPC. */
+export interface SubscriptionSpendRow {
+  subscription_id: string
+  total_cents:     number
+  charge_count:    number
+  last_charged_on: string | null
 }

@@ -134,6 +134,7 @@ export function useEditTransaction(id: string) {
   }
 
   return {
+    tx,
     pageStatus,
     initError,
     txMonthKey,

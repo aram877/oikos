@@ -14,7 +14,8 @@ import { getActiveAccountId } from '../accountContext'
 
 const TX_SELECT = `
   id, account_id, category_id, amount_cents, currency, date,
-  description, notes, import_hash, is_transfer, created_at, updated_at, deleted_at,
+  description, notes, import_hash, is_transfer, subscription_id,
+  created_at, updated_at, deleted_at,
   category:categories!category_id (
     name, parent_id,
     parent:categories!parent_id ( name )
@@ -31,19 +32,20 @@ type SupabaseTxRow = TransactionRow & {
 
 function flattenTransactionListRow(row: SupabaseTxRow): TransactionListRow {
   return {
-    id:           row.id,
-    account_id:   row.account_id,
-    category_id:  row.category_id,
-    amount_cents: row.amount_cents,
-    currency:     row.currency,
-    date:         row.date,
-    description:  row.description,
-    notes:        row.notes,
-    import_hash:  row.import_hash,
-    is_transfer:  row.is_transfer,
-    created_at:   row.created_at,
-    updated_at:   row.updated_at,
-    deleted_at:   row.deleted_at,
+    id:              row.id,
+    account_id:      row.account_id,
+    category_id:     row.category_id,
+    amount_cents:    row.amount_cents,
+    currency:        row.currency,
+    date:            row.date,
+    description:     row.description,
+    notes:           row.notes,
+    import_hash:     row.import_hash,
+    is_transfer:     row.is_transfer,
+    subscription_id: row.subscription_id,
+    created_at:      row.created_at,
+    updated_at:      row.updated_at,
+    deleted_at:      row.deleted_at,
     category_name:        row.category?.name        ?? null,
     category_parent_id:   row.category?.parent_id   ?? null,
     parent_category_name: row.category?.parent?.name ?? null,
@@ -120,7 +122,7 @@ export async function getTransaction(id: string): Promise<TransactionRow | null>
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('transactions')
-    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, created_at, updated_at, deleted_at')
+    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, subscription_id, created_at, updated_at, deleted_at')
     .eq('id', id)
     .is('deleted_at', null)
     .single()
@@ -152,7 +154,7 @@ export async function insertTransaction(
       import_hash:  input.import_hash  ?? null,
       is_transfer:  input.is_transfer  ?? false,
     })
-    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, created_at, updated_at, deleted_at')
+    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, subscription_id, created_at, updated_at, deleted_at')
     .single()
 
   if (error) throw new Error(`[transactionRepo.insertTransaction] ${error.message}`)
@@ -184,7 +186,7 @@ export async function updateTransaction(
     .update(updates)
     .eq('id', id)
     .is('deleted_at', null)
-    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, created_at, updated_at, deleted_at')
+    .select('id, account_id, category_id, amount_cents, currency, date, description, notes, import_hash, is_transfer, subscription_id, created_at, updated_at, deleted_at')
     .single()
 
   if (error?.code === 'PGRST116') return null

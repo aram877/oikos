@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { useEditTransaction } from '../_hooks/useEditTransaction'
 import { TransactionForm } from '../_components/TransactionForm'
 import { ReceiptsSection } from '../_components/ReceiptsSection'
+import { SubscriptionPicker } from '../_components/SubscriptionPicker'
 import { ErrorBox } from '@/components/ErrorBox'
 import { useAbilities } from '@/hooks/useAbilities'
+import { toCents } from '../_utils/currency'
 
 export default function EditTransactionPage({
   params,
@@ -15,6 +17,7 @@ export default function EditTransactionPage({
 }) {
   const { id } = use(params)
   const {
+    tx,
     pageStatus,
     initError,
     txMonthKey,
@@ -117,6 +120,14 @@ export default function EditTransactionPage({
         matchCount={matchCount}
         applyToAll={applyToAll}
         onApplyToAllChange={setApplyToAll}
+      />
+
+      <SubscriptionPicker
+        transactionId={id}
+        description={description}
+        amountCents={toCents(amountStr, sign) ?? 0}
+        initialSubId={tx?.subscription_id ?? null}
+        canEdit={can('finance', 'write')}
       />
 
       <ReceiptsSection transactionId={id} canEdit={can('finance', 'write')} />

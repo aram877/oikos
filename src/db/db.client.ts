@@ -55,6 +55,12 @@ import type {
   InsertRecurringTransactionInput,
   UpdateRecurringTransactionInput,
   TransactionReceiptWithUrl,
+  SubscriptionRow,
+  InsertSubscriptionInput,
+  UpdateSubscriptionInput,
+  SubscriptionMatchPatternRow,
+  InsertSubscriptionMatchPatternInput,
+  SubscriptionSpendRow,
 } from './types'
 import type { ListMessagesOptions, ConversationPreview, MessageReadRow } from './repositories/messagesRepo'
 
@@ -71,6 +77,7 @@ import * as profileRepo     from './repositories/profileRepo'
 import * as mealPlanRepo    from './repositories/mealPlanRepo'
 import * as messagesRepo    from './repositories/messagesRepo'
 import * as transactionReceiptsRepo from './repositories/transactionReceiptsRepo'
+import * as subscriptionsRepo       from './repositories/subscriptionsRepo'
 import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
 import { restoreBackup }                       from './backup/restoreBackup'
 
@@ -182,6 +189,22 @@ export const dbClient = {
     insert:     (input: InsertRecurringTransactionInput):                              Promise<RecurringTransactionRow>        => recurringTransactionsRepo.insertRecurring(input),
     update:     (id: string, input: UpdateRecurringTransactionInput):                  Promise<RecurringTransactionRow | null> => recurringTransactionsRepo.updateRecurring(id, input),
     softDelete: (id: string):                                                          Promise<void>                           => recurringTransactionsRepo.softDeleteRecurring(id),
+  },
+
+  subscriptions: {
+    list:                ():                                                       Promise<SubscriptionRow[]>             => subscriptionsRepo.listSubscriptions(),
+    get:                 (id: string):                                             Promise<SubscriptionRow | null>        => subscriptionsRepo.getSubscription(id),
+    insert:              (input: InsertSubscriptionInput):                         Promise<SubscriptionRow>               => subscriptionsRepo.insertSubscription(input),
+    update:              (id: string, input: UpdateSubscriptionInput):             Promise<SubscriptionRow | null>        => subscriptionsRepo.updateSubscription(id, input),
+    softDelete:          (id: string):                                             Promise<void>                          => subscriptionsRepo.softDeleteSubscription(id),
+    listPatterns:        (subscriptionId: string):                                 Promise<SubscriptionMatchPatternRow[]> => subscriptionsRepo.listPatterns(subscriptionId),
+    listAllPatterns:     ():                                                       Promise<SubscriptionMatchPatternRow[]> => subscriptionsRepo.listAllPatternsForAccount(),
+    insertPattern:       (input: InsertSubscriptionMatchPatternInput):             Promise<SubscriptionMatchPatternRow>   => subscriptionsRepo.insertPattern(input),
+    deletePattern:       (id: string):                                             Promise<void>                          => subscriptionsRepo.deletePattern(id),
+    linkTransaction:     (transactionId: string, subscriptionId: string | null):   Promise<void>                          => subscriptionsRepo.linkTransaction(transactionId, subscriptionId),
+    linkTransactionsBulk:(transactionIds: string[], subscriptionId: string):       Promise<number>                        => subscriptionsRepo.linkTransactionsBulk(transactionIds, subscriptionId),
+    transactions:        (subscriptionId: string):                                 Promise<import('./types').TransactionListRow[]> => subscriptionsRepo.listTransactionsForSubscription(subscriptionId),
+    spend:               (startDate: string, endDate: string):                     Promise<SubscriptionSpendRow[]>        => subscriptionsRepo.getSpendRollup(startDate, endDate),
   },
 
   receipts: {
