@@ -1,36 +1,37 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
 
 interface Props {
-  onSend: (body: string) => Promise<void>
+  onSend:    (body: string) => Promise<void>
+  disabled?: boolean
 }
 
-export function MessageInput({ onSend }: Props) {
+export function MessageInput({ onSend, disabled }: Props) {
   const [value,   setValue]   = useState('')
-  const [sending, setSending] = useState('')
-  const textareaRef           = useRef<HTMLTextAreaElement>(null)
+  const [sending, setSending] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function autoResize() {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 104)}px` // max ~4 rows
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`
   }
 
   async function handleSend() {
     const body = value.trim()
-    if (!body || sending) return
-    setSending('sending')
+    if (!body || sending || disabled) return
+    setSending(true)
     setValue('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
+      textareaRef.current.focus()
     }
     try {
       await onSend(body)
     } finally {
-      setSending('')
+      setSending(false)
     }
   }
 
@@ -41,31 +42,38 @@ export function MessageInput({ onSend }: Props) {
     }
   }
 
+  const canSend = value.trim().length > 0 && !sending && !disabled
+
   return (
-    <div className="shrink-0 border-t border-border bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-      <div className="flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={value}
-          onChange={(e) => { setValue(e.target.value); autoResize() }}
-          onKeyDown={handleKeyDown}
-          placeholder="Message…"
-          className="flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring leading-5"
-          style={{ minHeight: '44px', maxHeight: '104px' }}
-          disabled={!!sending}
-        />
-        <Button
-          size="sm"
+    <div className="shrink-0 border-t border-border bg-background/80 px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:px-5">
+      <div className="mx-auto flex max-w-2xl items-end gap-2">
+        <div className="flex flex-1 items-end rounded-3xl border border-input bg-card px-4 py-1.5 transition-all focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={value}
+            onChange={(e) => { setValue(e.target.value); autoResize() }}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message…"
+            disabled={disabled || sending}
+            className="flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-snug placeholder:text-muted-foreground focus:outline-none"
+            style={{ maxHeight: '140px' }}
+          />
+        </div>
+        <button
           onClick={handleSend}
-          disabled={!value.trim() || !!sending}
-          className="shrink-0"
+          disabled={!canSend}
           aria-label="Send message"
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-150 ${
+            canSend
+              ? 'bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95'
+              : 'bg-muted text-muted-foreground/60'
+          }`}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 -rotate-12">
             <path d="M2.87 2.298a.75.75 0 0 0-.812 1.022l2.218 4.852L8 8.75l-3.724.578-2.218 4.852a.75.75 0 0 0 1.002.978l11.25-5.25a.75.75 0 0 0 0-1.356L2.87 2.298Z" />
           </svg>
-        </Button>
+        </button>
       </div>
     </div>
   )

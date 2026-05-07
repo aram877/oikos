@@ -1,96 +1,44 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { getSupabase } from '@/db/supabase'
-import { getActiveAccountId } from '@/db/accountContext'
+import { dbClient } from '@/db/db.client'
 
-/** Returns the oldest last-seen timestamp across all conversation keys, or epoch if none. */
-function getOldestLastSeen(): string {
-  if (typeof window === 'undefined') return new Date(0).toISOString()
-  let oldest: string | null = null
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (!key?.startsWith('msgs_last_seen')) continue
-    const val = localStorage.getItem(key)
-    if (!val) continue
-    if (oldest === null || val < oldest) oldest = val
-  }
-  return oldest ?? new Date(0).toISOString()
-}
-
+/**
+ * Total unread-message count for the active account, server-derived from
+ * `message_reads`.  Updates in realtime on new messages and on read events.
+ */
 export function MessagesNavBadge() {
-  const [count,   setCount]   = useState(0)
-  const pathname              = usePathname()
-  const accountIdRef          = useRef<string | null>(null)
+  const [count, setCount] = useState(0)
+  const pathname          = usePathname()
 
-  // Reset count when on any messages page
-  useEffect(() => {
-    if (pathname.startsWith('/messages')) {
-      setCount(0)
-    }
-  }, [pathname])
-
-  // Initial unread count + realtime
   useEffect(() => {
     let cancelled = false
     const supabase = getSupabase()
 
-    async function loadCount() {
+    async function refresh() {
       try {
-        const [accountId, { data: userData }] = await Promise.all([
-          getActiveAccountId(),
-          supabase.auth.getUser(),
-        ])
-        if (cancelled) return
-        accountIdRef.current = accountId
-
-        const currentUserId = userData.user?.id
-        const lastSeen = getOldestLastSeen()
-
-        let query = supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('account_id', accountId)
-          .gt('created_at', lastSeen)
-
-        if (currentUserId) {
-          query = query.neq('user_id', currentUserId)
-        }
-
-        const { count: unread } = await query
-
-        if (!cancelled && !pathname.startsWith('/messages')) {
-          setCount(unread ?? 0)
-        }
+        const n = await dbClient.messages.unreadCount()
+        if (!cancelled) setCount(n)
       } catch {
-        // Silently ignore
+        // Silently ignore — badge is non-critical.
       }
     }
 
-    loadCount()
+    refresh()
 
     const channel = supabase
       .channel('messages_badge_rt')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          if (pathname.startsWith('/messages')) {
-            // Already viewing messages — don't increment
-            return
-          }
-          setCount((c) => c + 1)
-        },
-      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },      () => refresh())
+      .on('postgres_changes', { event: '*',      schema: 'public', table: 'message_reads' }, () => refresh())
       .subscribe()
 
     return () => {
       cancelled = true
       supabase.removeChannel(channel)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [pathname])
 
   if (count === 0) return null
 
