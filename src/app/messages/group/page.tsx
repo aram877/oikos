@@ -5,19 +5,22 @@ import Link from 'next/link'
 import { useMessages }      from '../_hooks/useMessages'
 import { MessageList }      from '../_components/MessageList'
 import { MessageInput }     from '../_components/MessageInput'
+import { GroupAvatar }      from '../_components/Avatar'
 import { useMemberProfiles } from '@/hooks/useMemberNames'
+import { ConnectionPill }   from '../_components/ConnectionPill'
 
 export default function GroupChatPage() {
   useEffect(() => { document.title = 'Group Chat | Oikos' }, [])
 
-  const { messages, status, error, rtStatus, currentUserId, send, reconnect } = useMessages('group')
+  const { messages, status, error, rtStatus, currentUserId, groupReads, send, reconnect }
+    = useMessages('group')
   const { profiles } = useMemberProfiles()
+
+  const memberCount = Object.keys(profiles).length
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100dvh - 3.5rem)' }}>
-
-      {/* Header */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-3">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-background/85 px-2 py-2.5 backdrop-blur sm:px-4">
         <Link
           href="/messages"
           aria-label="Back to messages"
@@ -28,37 +31,18 @@ export default function GroupChatPage() {
           </svg>
         </Link>
 
-        <h1 className="flex-1 text-base font-semibold">Group Chat</h1>
+        <GroupAvatar size={36} />
 
-        {rtStatus === 'error' ? (
-          <button
-            onClick={reconnect}
-            className="flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-xs text-red-800 transition-colors hover:bg-red-200 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900"
-            title="Click to retry connection"
-          >
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
-            Sync error — retry
-          </button>
-        ) : (
-          <span
-            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${
-              rtStatus === 'connected'
-                ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-400'
-                : 'bg-muted text-muted-foreground'
-            }`}
-            title={rtStatus === 'connected' ? 'Live sync active' : 'Connecting…'}
-          >
-            <span
-              className={`inline-block h-1.5 w-1.5 rounded-full ${
-                rtStatus === 'connected' ? 'bg-green-500' : 'bg-yellow-400'
-              }`}
-            />
-            {rtStatus === 'connected' ? 'Live' : 'Connecting'}
-          </span>
-        )}
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[15px] font-semibold leading-tight">Group Chat</h1>
+          <p className="truncate text-xs text-muted-foreground">
+            {memberCount > 0 ? `${memberCount} member${memberCount === 1 ? '' : 's'}` : '—'}
+          </p>
+        </div>
+
+        <ConnectionPill status={rtStatus} onRetry={reconnect} />
       </div>
 
-      {/* Loading / error states */}
       {status === 'loading' && (
         <div className="flex flex-1 items-center justify-center">
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -72,16 +56,16 @@ export default function GroupChatPage() {
         </div>
       )}
 
-      {/* Message list */}
       {status === 'loaded' && (
         <MessageList
           messages={messages}
           currentUserId={currentUserId}
           profiles={profiles}
+          conversationId="group"
+          groupReads={groupReads}
         />
       )}
 
-      {/* Input */}
       <MessageInput onSend={send} />
     </div>
   )

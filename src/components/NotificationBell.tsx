@@ -7,6 +7,7 @@ import { getSupabase } from '@/db/supabase'
 import { clearAccountCache } from '@/db/accountContext'
 import { Separator } from '@/components/ui/separator'
 import { relativeTime } from '@/lib/relativeTime'
+import { dbClient } from '@/db/db.client'
 
 interface Notification {
   id:         string
@@ -231,11 +232,25 @@ export default function NotificationBell({ userId }: { userId: string }) {
 
                     {n.type === 'message' && (
                       <Link
-                        href="/messages"
-                        onClick={() => setOpen(false)}
+                        href={
+                          n.data?.conversation_id === 'group'
+                            ? '/messages/group'
+                            : n.data?.conversation_id
+                              ? `/messages/${n.data.conversation_id}`
+                              : '/messages'
+                        }
+                        onClick={() => {
+                          setOpen(false)
+                          // Optimistically mark the conversation read; the
+                          // DB trigger will also drop these notifications.
+                          const convId = n.data?.conversation_id
+                          if (convId) {
+                            dbClient.messages.markRead(convId).catch(() => {})
+                          }
+                        }}
                         className="mt-2 inline-block rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
                       >
-                        View
+                        Open chat
                       </Link>
                     )}
                   </div>

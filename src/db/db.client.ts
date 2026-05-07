@@ -55,7 +55,7 @@ import type {
   InsertRecurringTransactionInput,
   UpdateRecurringTransactionInput,
 } from './types'
-import type { ListMessagesOptions, ConversationPreview } from './repositories/messagesRepo'
+import type { ListMessagesOptions, ConversationPreview, MessageReadRow } from './repositories/messagesRepo'
 
 import * as accountRepo              from './repositories/accountRepo'
 import * as budgetsRepo              from './repositories/budgetsRepo'
@@ -183,9 +183,13 @@ export const dbClient = {
   },
 
   messages: {
-    list:     (options: ListMessagesOptions): Promise<MessageRow[]>          => messagesRepo.listMessages(options),
-    insert:   (input: InsertMessageInput):    Promise<MessageRow>            => messagesRepo.insertMessage(input),
-    previews: (partnerIds: string[]):         Promise<ConversationPreview[]> => messagesRepo.listConversationPreviews(partnerIds),
+    list:        (options: ListMessagesOptions):       Promise<MessageRow[]>          => messagesRepo.listMessages(options),
+    insert:      (input: InsertMessageInput):          Promise<MessageRow>            => messagesRepo.insertMessage(input),
+    previews:    (partnerIds: string[]):               Promise<ConversationPreview[]> => messagesRepo.listConversationPreviews(partnerIds),
+    markRead:    (conversationId: 'group' | string):   Promise<void>                  => messagesRepo.markConversationRead(conversationId),
+    listReads:   ():                                   Promise<MessageReadRow[]>      => messagesRepo.listAccountReads(),
+    myLastRead:  (conversationId: 'group' | string):   Promise<string>                => messagesRepo.getMyLastRead(conversationId),
+    unreadCount: ():                                   Promise<number>                => messagesRepo.getUnreadMessageCount(),
   },
 
   backup: {

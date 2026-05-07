@@ -60,6 +60,9 @@ migrations=(
   "supabase/add_budgets.sql"
   "supabase/add_savings_goals.sql"
   "supabase/add_recurring_transactions.sql"
+
+  # 2026-05-04 — server-side message reads + coalesced message notifications
+  "supabase/add_message_reads.sql"
 )
 
 {
