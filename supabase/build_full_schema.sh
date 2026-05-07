@@ -63,6 +63,9 @@ migrations=(
 
   # 2026-05-04 — server-side message reads + coalesced message notifications
   "supabase/add_message_reads.sql"
+
+  # 2026-05-07 — receipts on transactions
+  "supabase/add_transaction_receipts.sql"
 )
 
 {

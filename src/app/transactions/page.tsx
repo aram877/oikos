@@ -28,6 +28,7 @@ export default function TransactionsPage() {
     listError,
     isCurrentMonth,
     categories,
+    receiptCounts,
     signFilter,
     setSignFilter,
     selectedCategoryIds,
@@ -267,7 +268,7 @@ export default function TransactionsPage() {
             <CardContent className="p-0">
               <ul className="divide-y divide-border">
                 {filteredTransactions.map((tx) => (
-                  <TxItem key={tx.id} tx={tx} />
+                  <TxItem key={tx.id} tx={tx} receiptCount={receiptCounts[tx.id] ?? 0} />
                 ))}
               </ul>
             </CardContent>

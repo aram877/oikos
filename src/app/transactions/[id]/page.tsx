@@ -4,7 +4,9 @@ import { use } from 'react'
 import Link from 'next/link'
 import { useEditTransaction } from '../_hooks/useEditTransaction'
 import { TransactionForm } from '../_components/TransactionForm'
+import { ReceiptsSection } from '../_components/ReceiptsSection'
 import { ErrorBox } from '@/components/ErrorBox'
+import { useAbilities } from '@/hooks/useAbilities'
 
 export default function EditTransactionPage({
   params,
@@ -48,6 +50,7 @@ export default function EditTransactionPage({
     cancelDelete,
   } = useEditTransaction(id)
 
+  const { can } = useAbilities()
   const backHref = txMonthKey ? `/transactions?month=${txMonthKey}` : '/transactions'
 
   if (pageStatus === 'initializing') {
@@ -115,6 +118,8 @@ export default function EditTransactionPage({
         applyToAll={applyToAll}
         onApplyToAllChange={setApplyToAll}
       />
+
+      <ReceiptsSection transactionId={id} canEdit={can('finance', 'write')} />
 
       {/* Delete (2-step) — visually separated from the save form */}
       <div className="mt-10 border-t border-neutral-200 pt-6 dark:border-neutral-800">

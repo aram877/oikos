@@ -54,6 +54,7 @@ import type {
   RecurringTransactionRow,
   InsertRecurringTransactionInput,
   UpdateRecurringTransactionInput,
+  TransactionReceiptWithUrl,
 } from './types'
 import type { ListMessagesOptions, ConversationPreview, MessageReadRow } from './repositories/messagesRepo'
 
@@ -69,6 +70,7 @@ import * as calendarRepo    from './repositories/calendarRepo'
 import * as profileRepo     from './repositories/profileRepo'
 import * as mealPlanRepo    from './repositories/mealPlanRepo'
 import * as messagesRepo    from './repositories/messagesRepo'
+import * as transactionReceiptsRepo from './repositories/transactionReceiptsRepo'
 import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
 import { restoreBackup }                       from './backup/restoreBackup'
 
@@ -180,6 +182,13 @@ export const dbClient = {
     insert:     (input: InsertRecurringTransactionInput):                              Promise<RecurringTransactionRow>        => recurringTransactionsRepo.insertRecurring(input),
     update:     (id: string, input: UpdateRecurringTransactionInput):                  Promise<RecurringTransactionRow | null> => recurringTransactionsRepo.updateRecurring(id, input),
     softDelete: (id: string):                                                          Promise<void>                           => recurringTransactionsRepo.softDeleteRecurring(id),
+  },
+
+  receipts: {
+    list:   (transactionId: string):                Promise<TransactionReceiptWithUrl[]>  => transactionReceiptsRepo.listReceipts(transactionId),
+    insert: (transactionId: string, file: File):    Promise<TransactionReceiptWithUrl>    => transactionReceiptsRepo.insertReceipt(transactionId, file),
+    delete: (id: string):                           Promise<void>                          => transactionReceiptsRepo.deleteReceipt(id),
+    counts: (transactionIds: string[]):             Promise<Record<string, number>>        => transactionReceiptsRepo.getReceiptCounts(transactionIds),
   },
 
   messages: {
