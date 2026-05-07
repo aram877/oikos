@@ -71,6 +71,7 @@ export function useTransactionList() {
   const [listError, setListError] = useState<string | null>(null)
 
   const [categories, setCategories] = useState<CategoryRow[]>([])
+  const [receiptCounts, setReceiptCounts] = useState<Record<string, number>>({})
 
   const isCurrentMonth = monthKey === currentMonthKey()
 
@@ -156,6 +157,18 @@ export function useTransactionList() {
     loadTransactions(monthKey)
   }, [dbStatus, monthKey, loadTransactions])
 
+  // Fetch receipt counts in the background — non-blocking, paperclip indicator
+  // appears as soon as the request returns.
+  useEffect(() => {
+    if (transactions.length === 0) { setReceiptCounts({}); return }
+    let cancelled = false
+    dbClient.receipts
+      .counts(transactions.map((t) => t.id))
+      .then((m) => { if (!cancelled) setReceiptCounts(m) })
+      .catch(() => { /* non-critical */ })
+    return () => { cancelled = true }
+  }, [transactions])
+
 
   const hasActiveFilter = signFilter !== 'all' || selectedCategoryIds.size > 0
 
@@ -219,6 +232,7 @@ export function useTransactionList() {
     listError,
     isCurrentMonth,
     categories,
+    receiptCounts,
     signFilter,
     setSignFilter,
     selectedCategoryIds,

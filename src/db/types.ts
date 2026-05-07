@@ -195,6 +195,25 @@ export interface UpdateProfileInput {
   avatar_url?:    string | null
 }
 
+// ── Transaction receipts ──────────────────────────────────────────────────── //
+
+export interface TransactionReceiptRow {
+  id:             string
+  transaction_id: string
+  account_id:     string
+  storage_path:   string
+  mime_type:      string
+  size_bytes:     number
+  original_name:  string | null
+  uploaded_by:    string | null
+  created_at:     string
+}
+
+/** A receipt row plus a freshly-issued signed URL for the storage object. */
+export interface TransactionReceiptWithUrl extends TransactionReceiptRow {
+  signed_url: string
+}
+
 // ── Messages types ────────────────────────────────────────────────────────── //
 
 export interface MessageRow {
