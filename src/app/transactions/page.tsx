@@ -7,6 +7,7 @@ import { useTransactionList } from "./_hooks/useTransactionList";
 import type { SortKey, SortDir } from "./_hooks/useTransactionList";
 import { useAutoCategorize } from "./_hooks/useAutoCategorize";
 import { TxItem } from "./_components/TxItem";
+import { SelectionToolbar } from "./_components/SelectionToolbar";
 import { FilterBar } from "./_components/FilterBar";
 import { formatMonthLabel } from "./_utils/month";
 import { Money } from "@/lib/privacy";
@@ -29,6 +30,16 @@ export default function TransactionsPage() {
     isCurrentMonth,
     categories,
     receiptCounts,
+    selectedIds,
+    toggleSelected,
+    selectAllVisible,
+    clearSelection,
+    bulkBusy,
+    bulkError,
+    bulkCategorize,
+    bulkLinkSubscription,
+    bulkSetTransfer,
+    bulkSoftDelete,
     signFilter,
     setSignFilter,
     selectedCategoryIds,
@@ -95,7 +106,7 @@ export default function TransactionsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={startCategorize}
+              onClick={() => startCategorize()}
               disabled={abilitiesLoading || categorizeStatus === "running"}
             >
               Auto-categorize
@@ -263,18 +274,65 @@ export default function TransactionsPage() {
       {/* Transaction list */}
       {loaded && filteredTransactions.length > 0 && (
         <>
-          <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
+          <SortHeader
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={setSort}
+            allSelected={selectedIds.size > 0 && selectedIds.size === filteredTransactions.length}
+            anySelected={selectedIds.size > 0}
+            onToggleSelectAll={() => {
+              if (selectedIds.size === filteredTransactions.length) clearSelection()
+              else selectAllVisible()
+            }}
+          />
           <Card>
             <CardContent className="p-0">
               <ul className="divide-y divide-border">
                 {filteredTransactions.map((tx) => (
-                  <TxItem key={tx.id} tx={tx} receiptCount={receiptCounts[tx.id] ?? 0} />
+                  <TxItem
+                    key={tx.id}
+                    tx={tx}
+                    receiptCount={receiptCounts[tx.id] ?? 0}
+                    selected={selectedIds.has(tx.id)}
+                    onToggleSelect={toggleSelected}
+                  />
                 ))}
               </ul>
             </CardContent>
           </Card>
         </>
       )}
+
+      <SelectionToolbar
+        count={selectedIds.size}
+        busy={bulkBusy || categorizeStatus === 'running'}
+        error={bulkError}
+        categories={categories}
+        canAutoCategorize={can('ai', 'write')}
+        autoCategorizeStatus={categorizeStatus === 'running' ? 'running' : 'idle'}
+        autoCategorizeIndex={currentIndex}
+        autoCategorizeTotal={totalCount}
+        onCategorize={bulkCategorize}
+        onAutoCategorize={async () => {
+          const ids = [...selectedIds]
+          // Keep the selection visible during the run so the user sees the
+          // inline "Categorizing X/N…" progress in the toolbar.  Clear after.
+          // overwrite=true: bulk-toolbar invocations should re-run on every
+          // selected row, even ones that already have a category.  The AI
+          // only writes when it returns a confident match — so if it can't
+          // decide, the existing category stays.
+          await startCategorize({ targetIds: ids, overwrite: true })
+          clearSelection()
+        }}
+        onLinkSubscription={bulkLinkSubscription}
+        onSetTransfer={bulkSetTransfer}
+        onDelete={bulkSoftDelete}
+        onClear={clearSelection}
+      />
+
+      {/* Pad the bottom of the page so the floating toolbar doesn't cover the
+          last transaction. */}
+      {(selectedIds.size > 0 || categorizeStatus === 'running') && <div className="h-20" />}
     </div>
   );
 }
@@ -283,10 +341,16 @@ function SortHeader({
   sortKey,
   sortDir,
   onSort,
+  allSelected,
+  anySelected,
+  onToggleSelectAll,
 }: {
   sortKey: SortKey
   sortDir: SortDir
   onSort: (key: SortKey, dir: SortDir) => void
+  allSelected:       boolean
+  anySelected:       boolean
+  onToggleSelectAll: () => void
 }) {
   function handleClick(key: SortKey, defaultDir: SortDir) {
     if (sortKey === key) {
@@ -296,7 +360,7 @@ function SortHeader({
     }
   }
 
-  function Arrow({ col }: { col: SortKey }) {
+  function arrow(col: SortKey) {
     if (sortKey !== col) return <span className="opacity-0">↓</span>
     return <span>{sortDir === 'desc' ? '↓' : '↑'}</span>
   }
@@ -307,24 +371,47 @@ function SortHeader({
     <div className="flex items-center gap-2 px-4 pb-1 text-xs">
       <button
         type="button"
+        role="checkbox"
+        aria-checked={allSelected ? true : anySelected ? 'mixed' : false}
+        onClick={onToggleSelectAll}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
+          allSelected || anySelected
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border bg-background hover:border-foreground/40'
+        }`}
+        aria-label={allSelected ? 'Unselect all' : 'Select all visible'}
+      >
+        {allSelected && (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3">
+            <path fillRule="evenodd" d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.5 7.5a.75.75 0 0 1-1.06 0L2.22 9.78a.75.75 0 0 1 1.06-1.06l2.47 2.47 6.97-6.97a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+          </svg>
+        )}
+        {!allSelected && anySelected && (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3">
+            <path d="M3.75 7.25a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5Z" />
+          </svg>
+        )}
+      </button>
+      <button
+        type="button"
         onClick={() => handleClick('date', 'desc')}
         className={`${base} w-24 shrink-0`}
       >
-        Date <Arrow col="date" />
+        Date {arrow('date')}
       </button>
       <button
         type="button"
         onClick={() => handleClick('description', 'asc')}
         className={`${base} flex-1 min-w-0`}
       >
-        Description <Arrow col="description" />
+        Description {arrow('description')}
       </button>
       <button
         type="button"
         onClick={() => handleClick('amount', 'desc')}
         className={`${base} shrink-0`}
       >
-        Amount <Arrow col="amount" />
+        Amount {arrow('amount')}
       </button>
     </div>
   )

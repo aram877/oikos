@@ -119,6 +119,36 @@ Exposed on `dbClient.transactions` in `src/db/db.client.ts`.
 8. **Transfers section** — rows where `is_transfer = true` render in a
    collapsible footer block; they're excluded from the totals.
 
+## Bulk actions (multi-select)
+
+Each row on `/transactions` renders a checkbox; the sort header has a
+master "select all visible" checkbox (with a tri-state indicator when
+some-but-not-all rows are selected). When ≥ 1 row is selected a
+floating toolbar appears at the bottom with:
+
+- **Categorize…** — opens a modal picker; assigns the chosen category
+  (or clears it).
+- **Auto-categorize** — runs the AI pipeline (rules → DB history →
+  configured AI provider) on the selected uncategorized rows. Reuses
+  the existing `useAutoCategorize` hook so the global progress UI
+  ("Categorizing 3/8…") shows up under the page header. Hidden if the
+  user has no `ai_access`.
+- **Subscription…** — opens a modal picker of active subscriptions;
+  links every selected transaction (or unlinks).
+- **Mark / Unmark transfer** — flips `is_transfer`.
+- **Delete** — two-click confirm; soft-deletes every selected row.
+
+Backed by `dbClient.transactions.bulkUpdateCategory`,
+`dbClient.transactions.bulkSetTransfer`, `dbClient.transactions.bulkSoftDelete`,
+and `dbClient.subscriptions.linkTransactionsBulk`. Each fires a single
+SQL `UPDATE … WHERE id IN (…)`. After the action the selection clears
+and the month re-loads (cache busted).
+
+Selection clears on month change (mixing months in one bulk action would
+be confusing). It survives ordinary filter/sort tweaks. The
+`/transactions/new` and individual `/transactions/[id]` pages still
+work as before.
+
 ## Notable details
 
 - **Money is integer cents.** Always pass signed `amount_cents`. Negative =

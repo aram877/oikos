@@ -210,6 +210,57 @@ export async function softDeleteTransaction(id: string): Promise<boolean> {
   return (data?.length ?? 0) > 0
 }
 
+// ── Bulk operations ───────────────────────────────────────────────────────── //
+
+/**
+ * Updates the category for a batch of transactions in one round-trip.
+ * Pass null to clear the category.
+ */
+export async function bulkUpdateCategory(ids: string[], categoryId: string | null): Promise<number> {
+  if (ids.length === 0) return 0
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('transactions')
+    .update({ category_id: categoryId, updated_at: new Date().toISOString() })
+    .in('id', ids)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`[transactionRepo.bulkUpdateCategory] ${error.message}`)
+  return data?.length ?? 0
+}
+
+/**
+ * Sets the is_transfer flag for a batch of transactions.
+ */
+export async function bulkSetTransfer(ids: string[], isTransfer: boolean): Promise<number> {
+  if (ids.length === 0) return 0
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('transactions')
+    .update({ is_transfer: isTransfer, updated_at: new Date().toISOString() })
+    .in('id', ids)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`[transactionRepo.bulkSetTransfer] ${error.message}`)
+  return data?.length ?? 0
+}
+
+/**
+ * Soft-deletes a batch of transactions.
+ */
+export async function bulkSoftDelete(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('transactions')
+    .update({ deleted_at: new Date().toISOString() })
+    .in('id', ids)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`[transactionRepo.bulkSoftDelete] ${error.message}`)
+  return data?.length ?? 0
+}
+
 // ── Monthly summary ───────────────────────────────────────────────────────── //
 
 /**

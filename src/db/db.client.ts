@@ -130,6 +130,12 @@ export const dbClient = {
       transactionRepo.countSameDescriptionInMonth(description, yearMonth, excludeId),
     updateCategoryByDescriptionInMonth: (description: string, yearMonth: string, categoryId: string | null, excludeId: string): Promise<number> =>
       transactionRepo.updateCategoryByDescriptionInMonth(description, yearMonth, categoryId, excludeId),
+    bulkUpdateCategory: (ids: string[], categoryId: string | null): Promise<number> =>
+      transactionRepo.bulkUpdateCategory(ids, categoryId),
+    bulkSetTransfer:    (ids: string[], isTransfer: boolean):       Promise<number> =>
+      transactionRepo.bulkSetTransfer(ids, isTransfer),
+    bulkSoftDelete:     (ids: string[]):                            Promise<number> =>
+      transactionRepo.bulkSoftDelete(ids),
   },
 
   shopping: {
