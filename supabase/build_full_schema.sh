@@ -69,6 +69,9 @@ migrations=(
 
   # 2026-05-07 — subscription tracker
   "supabase/add_subscriptions.sql"
+
+  # 2026-05-07 — subscription suggestion dismissals (smart detector)
+  "supabase/add_subscription_suggestions.sql"
 )
 
 {

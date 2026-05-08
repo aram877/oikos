@@ -205,6 +205,9 @@ export const dbClient = {
     linkTransactionsBulk:(transactionIds: string[], subscriptionId: string):       Promise<number>                        => subscriptionsRepo.linkTransactionsBulk(transactionIds, subscriptionId),
     transactions:        (subscriptionId: string):                                 Promise<import('./types').TransactionListRow[]> => subscriptionsRepo.listTransactionsForSubscription(subscriptionId),
     spend:               (startDate: string, endDate: string):                     Promise<SubscriptionSpendRow[]>        => subscriptionsRepo.getSpendRollup(startDate, endDate),
+    listDismissed:       ():                                                       Promise<string[]>                      => subscriptionsRepo.listDismissedFingerprints(),
+    dismiss:             (fingerprint: string):                                    Promise<void>                          => subscriptionsRepo.dismissSuggestion(fingerprint),
+    undismiss:           (fingerprint: string):                                    Promise<void>                          => subscriptionsRepo.undismissSuggestion(fingerprint),
   },
 
   receipts: {

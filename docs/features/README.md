@@ -35,6 +35,7 @@ All data is in Supabase (Postgres + Auth + Realtime + Storage).
 - [Categorization rules](./categorization-rules.md) — description+amount → category.
 - [Receipts](./receipts.md) — image / PDF attachments per transaction.
 - [Subscriptions](./subscriptions.md) — recurring services with adjustable matching (handles aggregators like Apple Pay).
+- [Subscription suggestions](./subscription-suggestions.md) — smart detector that surfaces likely subscriptions in your transactions.
 
 ### Household
 
