@@ -46,7 +46,7 @@ export default function YearlyPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={startCategorize}
+            onClick={() => startCategorize()}
             disabled={abilitiesLoading || categorizeStatus === 'running'}
           >
             {categorizeStatus === 'running'

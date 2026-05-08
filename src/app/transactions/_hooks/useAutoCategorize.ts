@@ -25,7 +25,15 @@ export function useAutoCategorize(
   currentIndex: number
   totalCount: number
   categorizedCount: number
-  startCategorize: () => Promise<void>
+  /**
+   * Run the AI categorize pipeline.
+   *
+   * Defaults: skips already-categorized rows.  When the user explicitly
+   * selects rows in the bulk toolbar, the caller passes
+   * `{ overwrite: true }` to also re-run on already-categorized rows
+   * (the AI may pick a better category than the current one).
+   */
+  startCategorize: (opts?: { targetIds?: string[]; overwrite?: boolean }) => Promise<void>
   dismissResult: () => void
 } {
   const [categorizeStatus, setCategorizeStatus] = useState<CategorizeStatus>('idle')
@@ -35,9 +43,14 @@ export function useAutoCategorize(
 
   const runningRef = useRef(false)
 
-  const startCategorize = useCallback(async () => {
+  const startCategorize = useCallback(async (
+    opts?: { targetIds?: string[]; overwrite?: boolean },
+  ) => {
     if (runningRef.current) return
     runningRef.current = true
+
+    const targetIds = opts?.targetIds
+    const overwrite = opts?.overwrite ?? false
 
     setCategorizeStatus('running')
     setTotalCount(0)
@@ -45,9 +58,25 @@ export function useAutoCategorize(
     setCategorizedCount(0)
 
     await dbClient.init()
-    const uncategorized = transactions === null
-      ? await dbClient.transactions.listUncategorized()
-      : transactions.filter(tx => tx.category_id === null)
+
+    // Pick the candidate pool.  In overwrite mode every row in the
+    // (filtered) set is eligible regardless of current category — the
+    // user explicitly asked for a fresh AI pass.
+    let uncategorized: TransactionListRow[]
+    if (overwrite) {
+      // No "global re-categorize everything" mode for safety; overwrite
+      // requires an explicit per-row scope.
+      uncategorized = (transactions ?? []).slice()
+    } else {
+      uncategorized = transactions === null
+        ? await dbClient.transactions.listUncategorized()
+        : transactions.filter(tx => tx.category_id === null)
+    }
+
+    if (targetIds && targetIds.length > 0) {
+      const targetSet = new Set(targetIds)
+      uncategorized = uncategorized.filter((tx) => targetSet.has(tx.id))
+    }
 
     setTotalCount(uncategorized.length)
 
@@ -55,7 +84,7 @@ export function useAutoCategorize(
 
     if (uncategorized.length > 0) {
       // Fetch all categories once and build a lowercase name → id map.
-      let categoryMap: Map<string, string> = new Map()
+      const categoryMap: Map<string, string> = new Map()
       let categoryNames: string[] = []
       let rules: CategorizationRuleRow[] = []
       try {
@@ -93,7 +122,7 @@ export function useAutoCategorize(
           // 0. Check rules first (instant, no AI needed).
           const ruleMatch = matchRule(rules, tx)
           let categoryId  = ruleMatch?.categoryId
-          let ruleNote    = ruleMatch?.note ?? null
+          const ruleNote    = ruleMatch?.note ?? null
 
           if (categoryId === undefined) {
             // 1. Check DB history.

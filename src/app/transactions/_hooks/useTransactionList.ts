@@ -73,6 +73,12 @@ export function useTransactionList() {
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [receiptCounts, setReceiptCounts] = useState<Record<string, number>>({})
 
+  // Bulk-action selection state.  Cleared on month change or on filter
+  // clear; survives ordinary filter / sort tweaks.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkBusy,    setBulkBusy]    = useState(false)
+  const [bulkError,   setBulkError]   = useState<string | null>(null)
+
   const isCurrentMonth = monthKey === currentMonthKey()
 
   useEffect(() => {
@@ -222,6 +228,78 @@ export function useTransactionList() {
     setSortDir(dir)
   }
 
+  // ── Bulk selection actions ──────────────────────────────────────────────── //
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function selectAllVisible() {
+    setSelectedIds(new Set(filteredTransactions.map((t) => t.id)))
+  }
+
+  async function reloadCurrent() {
+    monthCache.delete(monthKey)
+    await loadTransactions(monthKey, true)
+    // Refresh receipt counts after the new list lands.
+  }
+
+  async function runBulk<T>(fn: () => Promise<T>): Promise<T | null> {
+    setBulkBusy(true)
+    setBulkError(null)
+    try {
+      const out = await fn()
+      clearSelection()
+      await reloadCurrent()
+      return out
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : String(err))
+      return null
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  async function bulkCategorize(categoryId: string | null) {
+    if (selectedIds.size === 0) return
+    return runBulk(() => dbClient.transactions.bulkUpdateCategory([...selectedIds], categoryId))
+  }
+
+  async function bulkLinkSubscription(subscriptionId: string | null) {
+    if (selectedIds.size === 0) return
+    return runBulk(async () => {
+      if (subscriptionId) {
+        return dbClient.subscriptions.linkTransactionsBulk([...selectedIds], subscriptionId)
+      }
+      // Unlink: set to null one by one is fine; tiny set in practice.
+      for (const id of selectedIds) {
+        await dbClient.subscriptions.linkTransaction(id, null)
+      }
+      return selectedIds.size
+    })
+  }
+
+  async function bulkSetTransfer(isTransfer: boolean) {
+    if (selectedIds.size === 0) return
+    return runBulk(() => dbClient.transactions.bulkSetTransfer([...selectedIds], isTransfer))
+  }
+
+  async function bulkSoftDelete() {
+    if (selectedIds.size === 0) return
+    return runBulk(() => dbClient.transactions.bulkSoftDelete([...selectedIds]))
+  }
+
+  // Clear selection when the month changes (selecting across months is confusing).
+  useEffect(() => { clearSelection() }, [monthKey])
+
   return {
     dbStatus,
     dbError,
@@ -248,5 +326,16 @@ export function useTransactionList() {
     goToPrevMonth: () => { setMonthKey(prevMonthKey); clearFilters() },
     goToNextMonth: () => { setMonthKey(nextMonthKey); clearFilters() },
     reload: () => { monthCache.delete(monthKey); loadTransactions(monthKey, true) },
+    // Bulk selection
+    selectedIds,
+    toggleSelected,
+    selectAllVisible,
+    clearSelection,
+    bulkBusy,
+    bulkError,
+    bulkCategorize,
+    bulkLinkSubscription,
+    bulkSetTransfer,
+    bulkSoftDelete,
   }
 }
