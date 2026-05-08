@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSubscriptions } from './_hooks/useSubscriptions'
+import { useSubscriptionSuggestions } from './_hooks/useSubscriptionSuggestions'
+import { SuggestionsBanner } from './_components/SuggestionsBanner'
 import { Money } from '@/lib/privacy'
 import { dbClient } from '@/db/db.client'
 import type { SubscriptionRow, SubscriptionCadence } from '@/db/types'
@@ -32,6 +34,7 @@ export default function SubscriptionsPage() {
   useEffect(() => { document.title = 'Subscriptions | Oikos' }, [])
 
   const { items, spend, status, error, reload } = useSubscriptions()
+  const { items: suggestions } = useSubscriptionSuggestions()
   const [adding, setAdding] = useState(false)
 
   const active    = useMemo(() => items.filter((s) => !s.cancelled_on), [items])
@@ -54,6 +57,8 @@ export default function SubscriptionsPage() {
           + Add
         </button>
       </div>
+
+      <SuggestionsBanner count={suggestions.length} examples={suggestions} />
 
       {status === 'loaded' && active.length > 0 && (
         <div className="mb-5 rounded-2xl border border-border bg-card px-5 py-4">

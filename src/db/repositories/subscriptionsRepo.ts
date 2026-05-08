@@ -229,6 +229,43 @@ export async function listTransactionsForSubscription(
   }))
 }
 
+// ── Suggestion dismissals ─────────────────────────────────────────────────── //
+
+export async function listDismissedFingerprints(): Promise<string[]> {
+  const accountId = await getActiveAccountId()
+  const supabase  = getSupabase()
+  const { data, error } = await supabase
+    .from('subscription_suggestion_dismissals')
+    .select('fingerprint')
+    .eq('account_id', accountId)
+  if (error) throw new Error(`[subscriptionsRepo.listDismissedFingerprints] ${error.message}`)
+  return ((data ?? []) as { fingerprint: string }[]).map((r) => r.fingerprint)
+}
+
+export async function dismissSuggestion(fingerprint: string): Promise<void> {
+  const accountId = await getActiveAccountId()
+  const supabase  = getSupabase()
+  const { data: u } = await supabase.auth.getUser()
+  const { error } = await supabase
+    .from('subscription_suggestion_dismissals')
+    .upsert(
+      { account_id: accountId, fingerprint, dismissed_by: u.user?.id ?? null },
+      { onConflict: 'account_id,fingerprint' },
+    )
+  if (error) throw new Error(`[subscriptionsRepo.dismissSuggestion] ${error.message}`)
+}
+
+export async function undismissSuggestion(fingerprint: string): Promise<void> {
+  const accountId = await getActiveAccountId()
+  const supabase  = getSupabase()
+  const { error } = await supabase
+    .from('subscription_suggestion_dismissals')
+    .delete()
+    .eq('account_id', accountId)
+    .eq('fingerprint', fingerprint)
+  if (error) throw new Error(`[subscriptionsRepo.undismissSuggestion] ${error.message}`)
+}
+
 // ── Spend rollup ───────────────────────────────────────────────────────────── //
 
 export async function getSpendRollup(startDate: string, endDate: string): Promise<SubscriptionSpendRow[]> {
