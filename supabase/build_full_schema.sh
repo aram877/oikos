@@ -75,6 +75,9 @@ migrations=(
 
   # 2026-05-09 — end-to-end encrypted household password vault
   "supabase/add_password_vault.sql"
+
+  # 2026-05-09 — shared done state on shopping items
+  "supabase/add_shopping_done_state.sql"
 )
 
 {

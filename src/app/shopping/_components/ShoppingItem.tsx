@@ -11,21 +11,23 @@ function formatDate(iso: string) {
 
 interface Props {
   item:        ShoppingItemRow
+  onToggle:    (id: string, done: boolean) => void
   onRemove:    (id: string) => void
   creatorName: string | null
+  doneByName:  string | null
 }
 
-export function ShoppingItem({ item, onRemove, creatorName }: Props) {
-  const [checked,       setChecked]       = useState(false)
+export function ShoppingItem({ item, onToggle, onRemove, creatorName, doneByName }: Props) {
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const checked = item.done_at !== null
 
   return (
     <li className="flex items-start gap-3 px-4 py-3">
       <Checkbox
         id={`item-${item.id}`}
         checked={checked}
-        onCheckedChange={(v) => setChecked(!!v)}
-        aria-label={`Check off ${item.name}`}
+        onCheckedChange={(v) => onToggle(item.id, !!v)}
+        aria-label={checked ? `Uncheck ${item.name}` : `Check off ${item.name}`}
         className="mt-0.5"
       />
       <span className="min-w-0 flex-1">
@@ -37,16 +39,15 @@ export function ShoppingItem({ item, onRemove, creatorName }: Props) {
         >
           {item.name}
         </label>
-        {(creatorName || item.created_at) && (
+        {checked ? (
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Got it{doneByName ? ` · ${doneByName}` : ''}
+          </span>
+        ) : (creatorName || item.created_at) ? (
           <span className="mt-0.5 block text-xs text-muted-foreground">
             Added{creatorName ? ` by ${creatorName}` : ''}{item.created_at ? ` · ${formatDate(item.created_at)}` : ''}
           </span>
-        )}
-        {checked && (
-          <span className="mt-0.5 block text-xs italic text-muted-foreground/70">
-            Only visible to you
-          </span>
-        )}
+        ) : null}
       </span>
 
       {item.quantity && (

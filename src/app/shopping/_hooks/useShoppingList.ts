@@ -73,6 +73,14 @@ export function useShoppingList() {
       )
       .on(
         'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'shopping_items' },
+        (payload) => {
+          const updated = payload.new as ShoppingItemRow
+          setItems((prev) => prev.map((i) => i.id === updated.id ? updated : i))
+        },
+      )
+      .on(
+        'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'shopping_items' },
         (payload) => {
           const deletedId = (payload.old as { id: string }).id
@@ -100,6 +108,8 @@ export function useShoppingList() {
       name,
       quantity:   quantity ?? null,
       added_by:   null,
+      done_at:    null,
+      done_by:    null,
       created_at: new Date().toISOString(),
     }
     setItems((prev) => [...prev, optimistic])
@@ -110,6 +120,19 @@ export function useShoppingList() {
     } catch (err) {
       setItems((prev) => prev.filter((i) => i.id !== optimistic.id))
       throw err
+    }
+  }, [])
+
+  const toggleDone = useCallback(async (id: string, done: boolean) => {
+    // Optimistic — realtime UPDATE will reconcile.
+    const nowIso = new Date().toISOString()
+    setItems((prev) => prev.map((i) =>
+      i.id === id ? { ...i, done_at: done ? nowIso : null, done_by: done ? i.done_by : null } : i,
+    ))
+    try {
+      await dbClient.shopping.setDone(id, done)
+    } catch {
+      // Realtime will reconcile on the next refresh.
     }
   }, [])
 
@@ -127,5 +150,5 @@ export function useShoppingList() {
     setReconnectKey((k) => k + 1)
   }, [])
 
-  return { items, status, error, rtStatus, addItem, removeItem, reconnect }
+  return { items, status, error, rtStatus, addItem, toggleDone, removeItem, reconnect }
 }

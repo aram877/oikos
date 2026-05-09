@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 export default function ShoppingPage() {
   useEffect(() => { document.title = 'Shopping | Oikos' }, [])
 
-  const { items, status, error, rtStatus, addItem, removeItem, reconnect } = useShoppingList()
+  const { items, status, error, rtStatus, addItem, toggleDone, removeItem, reconnect } = useShoppingList()
   const memberNames = useMemberNames()
 
   return (
@@ -85,8 +85,10 @@ export default function ShoppingPage() {
                 <ShoppingItem
                   key={item.id}
                   item={item}
+                  onToggle={toggleDone}
                   onRemove={removeItem}
                   creatorName={memberNames[item.added_by ?? ''] ?? null}
+                  doneByName={memberNames[item.done_by ?? ''] ?? null}
                 />
               ))}
             </ul>
