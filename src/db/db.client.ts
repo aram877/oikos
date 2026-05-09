@@ -145,9 +145,10 @@ export const dbClient = {
   },
 
   shopping: {
-    list:   ():                               Promise<ShoppingItemRow[]> => shoppingRepo.listItems(),
-    insert: (input: InsertShoppingItemInput): Promise<ShoppingItemRow>   => shoppingRepo.insertItem(input),
-    delete: (id: string):                     Promise<boolean>           => shoppingRepo.deleteItem(id),
+    list:    ():                                  Promise<ShoppingItemRow[]>      => shoppingRepo.listItems(),
+    insert:  (input: InsertShoppingItemInput):    Promise<ShoppingItemRow>        => shoppingRepo.insertItem(input),
+    setDone: (id: string, done: boolean):         Promise<ShoppingItemRow | null> => shoppingRepo.setItemDone(id, done),
+    delete:  (id: string):                        Promise<boolean>                => shoppingRepo.deleteItem(id),
   },
 
   calendar: {

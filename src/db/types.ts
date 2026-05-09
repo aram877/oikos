@@ -223,6 +223,10 @@ export interface ShoppingItemRow {
   name:       string
   quantity:   string | null
   added_by:   string | null
+  /** When the item was checked off; NULL = still to-buy.  Shared across the household. */
+  done_at:    string | null
+  /** Who checked it off (cleared back to NULL when un-checked). */
+  done_by:    string | null
   created_at: string
 }
 
