@@ -34,6 +34,7 @@ All data is in Supabase (Postgres + Auth + Realtime + Storage).
 - [Auto-categorize (AI)](./auto-categorize.md) — batch classifier.
 - [Categorization rules](./categorization-rules.md) — description+amount → category.
 - [Receipts](./receipts.md) — image / PDF attachments per transaction.
+- [Receipt OCR (AI auto-fill)](./receipt-ocr.md) — snap a receipt → Claude extracts merchant / amount / date.
 - [Subscriptions](./subscriptions.md) — recurring services with adjustable matching (handles aggregators like Apple Pay).
 - [Subscription suggestions](./subscription-suggestions.md) — smart detector that surfaces likely subscriptions in your transactions.
 

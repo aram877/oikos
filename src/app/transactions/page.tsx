@@ -8,6 +8,8 @@ import type { SortKey, SortDir } from "./_hooks/useTransactionList";
 import { useAutoCategorize } from "./_hooks/useAutoCategorize";
 import { TxItem } from "./_components/TxItem";
 import { SelectionToolbar } from "./_components/SelectionToolbar";
+import { ScanReceiptModal } from "./_components/ScanReceiptModal";
+import { useAiConfig } from "@/lib/aiConfig";
 import { FilterBar } from "./_components/FilterBar";
 import { formatMonthLabel } from "./_utils/month";
 import { Money } from "@/lib/privacy";
@@ -58,6 +60,12 @@ export default function TransactionsPage() {
   } = useTransactionList();
 
   const { can, loading: abilitiesLoading } = useAbilities();
+  const { config: aiConfig } = useAiConfig();
+  const [scanOpen, setScanOpen] = useState(false);
+  const canScanReceipts = aiConfig.provider === 'claude'
+    && aiConfig.claude.apiKey.length > 0
+    && (abilitiesLoading || can('ai', 'write'))
+    && (abilitiesLoading || can('finance', 'write'));
 
   useEffect(() => { document.title = 'Transactions | Oikos' }, [])
 
@@ -84,6 +92,19 @@ export default function TransactionsPage() {
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-xl font-semibold">Transactions</h1>
           <div className="flex items-center gap-2">
+            {canScanReceipts && (
+              <button
+                type="button"
+                onClick={() => setScanOpen(true)}
+                title="Scan a receipt with AI"
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
+                  <path fillRule="evenodd" d="M9 4.5a.75.75 0 0 1 .721.544l.813 2.846a3.75 3.75 0 0 0 2.576 2.576l2.846.813a.75.75 0 0 1 0 1.442l-2.846.813a3.75 3.75 0 0 0-2.576 2.576l-.813 2.846a.75.75 0 0 1-1.442 0l-.813-2.846a3.75 3.75 0 0 0-2.576-2.576L2.044 12.72a.75.75 0 0 1 0-1.442l2.846-.813a3.75 3.75 0 0 0 2.576-2.576l.813-2.846A.75.75 0 0 1 9 4.5ZM18 1.5a.75.75 0 0 1 .728.568l.258 1.036a2.625 2.625 0 0 0 1.91 1.91l1.036.258a.75.75 0 0 1 0 1.456l-1.036.258a2.625 2.625 0 0 0-1.91 1.91l-.258 1.036a.75.75 0 0 1-1.456 0l-.258-1.036a2.625 2.625 0 0 0-1.91-1.91l-1.036-.258a.75.75 0 0 1 0-1.456l1.036-.258a2.625 2.625 0 0 0 1.91-1.91l.258-1.036A.75.75 0 0 1 18 1.5Z" clipRule="evenodd" />
+                </svg>
+                Scan
+              </button>
+            )}
             <Link href="/transactions/new" className={cn(buttonVariants({ size: 'sm' }))}>
               + Add
             </Link>
@@ -333,6 +354,14 @@ export default function TransactionsPage() {
       {/* Pad the bottom of the page so the floating toolbar doesn't cover the
           last transaction. */}
       {(selectedIds.size > 0 || categorizeStatus === 'running') && <div className="h-20" />}
+
+      {scanOpen && (
+        <ScanReceiptModal
+          categories={categories}
+          onClose={() => setScanOpen(false)}
+          onSaved={reload}
+        />
+      )}
     </div>
   );
 }
