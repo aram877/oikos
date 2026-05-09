@@ -53,6 +53,7 @@ All data is in Supabase (Postgres + Auth + Realtime + Storage).
 - [Meal library](./meal-library.md) — meals + ingredients CRUD.
 - [Messages](./messages.md) — group chat + DMs with read receipts.
 - [Notifications](./notifications.md) — bell with realtime sync.
+- [Password vault](./password-vault.md) — E2E-encrypted shared household passwords.
 
 ### Settings & system
 

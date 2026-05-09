@@ -23,7 +23,7 @@ import type { AccessLevel } from '@/db/types'
 export const ROLES    = ['admin', 'parent', 'child'] as const
 export type  Role     = typeof ROLES[number]
 
-export const FEATURES = ['finance', 'shopping', 'calendar', 'settings', 'ai', 'messaging'] as const
+export const FEATURES = ['finance', 'shopping', 'calendar', 'settings', 'ai', 'messaging', 'vault'] as const
 export type  Feature  = typeof FEATURES[number]
 
 export const ACTIONS  = ['read', 'write', 'delete'] as const
@@ -51,6 +51,7 @@ const ROLE_CEILINGS: Record<Role, Record<Feature, AbilitySet>> = {
     settings:  ALL_ACTIONS,
     ai:        ALL_ACTIONS,
     messaging: ALL_ACTIONS,
+    vault:     ALL_ACTIONS,
   },
   parent: {
     finance:   READ_WRITE,
@@ -59,6 +60,7 @@ const ROLE_CEILINGS: Record<Role, Record<Feature, AbilitySet>> = {
     settings:  READ_WRITE,   // default none, but admin can grant
     ai:        READ_WRITE,   // default none, but admin can grant
     messaging: READ_WRITE,
+    vault:     READ_WRITE,   // default none, but admin can grant
   },
   child: {
     finance:   NO_ACCESS,    // strict — child never gets finance
@@ -67,6 +69,7 @@ const ROLE_CEILINGS: Record<Role, Record<Feature, AbilitySet>> = {
     settings:  READ_WRITE,   // default none, but admin can grant
     ai:        READ_WRITE,   // default none, but admin can grant
     messaging: READ_WRITE,
+    vault:     READ_WRITE,   // default none, but admin can grant
   },
 }
 
@@ -122,6 +125,7 @@ export function getDefaultAccessLevels(role: Role): {
   settings_access:  AccessLevel
   ai_access:        AccessLevel
   messaging_access: AccessLevel
+  vault_access:     AccessLevel
 } {
   switch (role) {
     case 'admin':
@@ -132,6 +136,7 @@ export function getDefaultAccessLevels(role: Role): {
         settings_access:  'write',
         ai_access:        'write',
         messaging_access: 'write',
+        vault_access:     'write',
       }
     case 'parent':
       return {
@@ -141,6 +146,7 @@ export function getDefaultAccessLevels(role: Role): {
         settings_access:  'none',
         ai_access:        'none',
         messaging_access: 'write',
+        vault_access:     'read',     // can browse / use, not edit
       }
     case 'child':
       return {
@@ -150,6 +156,7 @@ export function getDefaultAccessLevels(role: Role): {
         settings_access:  'none',
         ai_access:        'none',
         messaging_access: 'write',
+        vault_access:     'none',     // admin grants per-household
       }
   }
 }

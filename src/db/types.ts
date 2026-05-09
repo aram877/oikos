@@ -154,14 +154,65 @@ export interface AccountMemberRow {
   settings_access:  AccessLevel
   ai_access:        AccessLevel
   messaging_access: AccessLevel
+  vault_access:     AccessLevel
 }
 
 export interface UpdateMemberPermissionsInput {
-  finance_access?:  AccessLevel
-  shopping_access?: AccessLevel
-  calendar_access?: AccessLevel
-  settings_access?: AccessLevel
-  ai_access?:       AccessLevel
+  finance_access?:   AccessLevel
+  shopping_access?:  AccessLevel
+  calendar_access?:  AccessLevel
+  settings_access?:  AccessLevel
+  ai_access?:        AccessLevel
+  messaging_access?: AccessLevel
+  vault_access?:     AccessLevel
+}
+
+// ── Password vault ────────────────────────────────────────────────────────── //
+
+export interface PasswordVaultMetaRow {
+  account_id:  string
+  kdf:         string
+  kdf_iters:   number
+  salt_b64:    string
+  verifier_ct: string
+  verifier_iv: string
+  setup_by:    string | null
+  created_at:  string
+  updated_at:  string
+}
+
+export interface PasswordEntryRow {
+  id:         string
+  account_id: string
+  name:       string
+  url:        string | null
+  ciphertext: string
+  iv:         string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Plaintext shape of a decrypted entry's encrypted blob. */
+export interface PasswordEntrySecret {
+  username:    string
+  password:    string
+  notes:       string
+  totp_secret: string | null
+}
+
+export interface InsertPasswordEntryInput {
+  name:       string
+  url:        string | null
+  ciphertext: string
+  iv:         string
+}
+
+export interface UpdatePasswordEntryInput {
+  name?:       string
+  url?:        string | null
+  ciphertext?: string
+  iv?:         string
 }
 
 // ── Shopping list types ───────────────────────────────────────────────────── //

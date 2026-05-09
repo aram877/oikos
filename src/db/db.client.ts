@@ -61,8 +61,13 @@ import type {
   SubscriptionMatchPatternRow,
   InsertSubscriptionMatchPatternInput,
   SubscriptionSpendRow,
+  PasswordVaultMetaRow,
+  PasswordEntryRow,
+  InsertPasswordEntryInput,
+  UpdatePasswordEntryInput,
 } from './types'
 import type { ListMessagesOptions, ConversationPreview, MessageReadRow } from './repositories/messagesRepo'
+import type { SetupVaultInput } from './repositories/vaultRepo'
 
 import * as accountRepo              from './repositories/accountRepo'
 import * as budgetsRepo              from './repositories/budgetsRepo'
@@ -78,6 +83,7 @@ import * as mealPlanRepo    from './repositories/mealPlanRepo'
 import * as messagesRepo    from './repositories/messagesRepo'
 import * as transactionReceiptsRepo from './repositories/transactionReceiptsRepo'
 import * as subscriptionsRepo       from './repositories/subscriptionsRepo'
+import * as vaultRepo                from './repositories/vaultRepo'
 import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
 import { restoreBackup }                       from './backup/restoreBackup'
 
@@ -214,6 +220,16 @@ export const dbClient = {
     listDismissed:       ():                                                       Promise<string[]>                      => subscriptionsRepo.listDismissedFingerprints(),
     dismiss:             (fingerprint: string):                                    Promise<void>                          => subscriptionsRepo.dismissSuggestion(fingerprint),
     undismiss:           (fingerprint: string):                                    Promise<void>                          => subscriptionsRepo.undismissSuggestion(fingerprint),
+  },
+
+  vault: {
+    getMeta:      ():                                                Promise<PasswordVaultMetaRow | null> => vaultRepo.getVaultMeta(),
+    setup:        (input: SetupVaultInput):                          Promise<PasswordVaultMetaRow>        => vaultRepo.setupVault(input),
+    reset:        ():                                                Promise<void>                        => vaultRepo.resetVault(),
+    listEntries:  ():                                                Promise<PasswordEntryRow[]>          => vaultRepo.listEntries(),
+    insertEntry:  (input: InsertPasswordEntryInput):                 Promise<PasswordEntryRow>            => vaultRepo.insertEntry(input),
+    updateEntry:  (id: string, input: UpdatePasswordEntryInput):     Promise<PasswordEntryRow | null>     => vaultRepo.updateEntry(id, input),
+    deleteEntry:  (id: string):                                      Promise<void>                        => vaultRepo.deleteEntry(id),
   },
 
   receipts: {

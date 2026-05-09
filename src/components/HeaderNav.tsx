@@ -33,6 +33,7 @@ const NAV: NavEntry[] = [
   },
   { kind: 'link', label: 'Calendar',  href: '/calendar'  },
   { kind: 'link', label: 'Messages',  href: '/messages', badge: true },
+  { kind: 'link', label: 'Vault',     href: '/vault'     },
   { kind: 'link', label: 'Household', href: '/household' },
 ]
 
@@ -55,10 +56,11 @@ export default function HeaderNav() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  useEffect(() => {
-    setOpenGroup(null)
-    setMobileOpen(false)
-  }, [pathname])
+  // Close any open group / mobile menu when the route changes.  The lint
+  // rule that bans synchronous setState in effects doesn't fit here — this
+  // is the canonical "reset transient UI on prop change" pattern.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setOpenGroup(null); setMobileOpen(false) }, [pathname])
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + '/')
