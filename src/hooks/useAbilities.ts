@@ -31,12 +31,14 @@ import type { AccessLevel } from '@/db/types'
 
 // The columns we select from account_members for the current user
 interface MemberRow {
-  role:            Role
-  finance_access:  AccessLevel
-  shopping_access: AccessLevel
-  calendar_access: AccessLevel
-  settings_access: AccessLevel
-  ai_access:       AccessLevel
+  role:             Role
+  finance_access:   AccessLevel
+  shopping_access:  AccessLevel
+  calendar_access:  AccessLevel
+  settings_access:  AccessLevel
+  ai_access:        AccessLevel
+  messaging_access: AccessLevel
+  vault_access:     AccessLevel
 }
 
 // Maps a Feature name to its DB column name
@@ -67,7 +69,7 @@ export function useAbilities(): UseAbilitiesResult {
 
         const { data } = await supabase
           .from('account_members')
-          .select('role, finance_access, shopping_access, calendar_access, settings_access, ai_access')
+          .select('role, finance_access, shopping_access, calendar_access, settings_access, ai_access, messaging_access, vault_access')
           .eq('account_id', accountId)
           .single()
 

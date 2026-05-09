@@ -72,6 +72,9 @@ migrations=(
 
   # 2026-05-07 — subscription suggestion dismissals (smart detector)
   "supabase/add_subscription_suggestions.sql"
+
+  # 2026-05-09 — end-to-end encrypted household password vault
+  "supabase/add_password_vault.sql"
 )
 
 {
