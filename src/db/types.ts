@@ -155,6 +155,7 @@ export interface AccountMemberRow {
   ai_access:        AccessLevel
   messaging_access: AccessLevel
   vault_access:     AccessLevel
+  wiki_access:      AccessLevel
 }
 
 export interface UpdateMemberPermissionsInput {
@@ -165,6 +166,31 @@ export interface UpdateMemberPermissionsInput {
   ai_access?:        AccessLevel
   messaging_access?: AccessLevel
   vault_access?:     AccessLevel
+  wiki_access?:      AccessLevel
+}
+
+// ── Household wiki ────────────────────────────────────────────────────────── //
+
+export interface WikiPageRow {
+  id:         string
+  account_id: string
+  title:      string
+  body:       string                 // markdown source
+  created_by: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface InsertWikiPageInput {
+  title: string
+  body:  string
+}
+
+export interface UpdateWikiPageInput {
+  title?: string
+  body?:  string
 }
 
 // ── Password vault ────────────────────────────────────────────────────────── //

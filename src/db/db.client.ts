@@ -65,6 +65,9 @@ import type {
   PasswordEntryRow,
   InsertPasswordEntryInput,
   UpdatePasswordEntryInput,
+  WikiPageRow,
+  InsertWikiPageInput,
+  UpdateWikiPageInput,
 } from './types'
 import type { ListMessagesOptions, ConversationPreview, MessageReadRow } from './repositories/messagesRepo'
 import type { SetupVaultInput } from './repositories/vaultRepo'
@@ -84,6 +87,7 @@ import * as messagesRepo    from './repositories/messagesRepo'
 import * as transactionReceiptsRepo from './repositories/transactionReceiptsRepo'
 import * as subscriptionsRepo       from './repositories/subscriptionsRepo'
 import * as vaultRepo                from './repositories/vaultRepo'
+import * as wikiRepo                 from './repositories/wikiRepo'
 import { buildBackupFile, downloadBackupJson } from './backup/exportBackup'
 import { restoreBackup }                       from './backup/restoreBackup'
 
@@ -221,6 +225,14 @@ export const dbClient = {
     listDismissed:       ():                                                       Promise<string[]>                      => subscriptionsRepo.listDismissedFingerprints(),
     dismiss:             (fingerprint: string):                                    Promise<void>                          => subscriptionsRepo.dismissSuggestion(fingerprint),
     undismiss:           (fingerprint: string):                                    Promise<void>                          => subscriptionsRepo.undismissSuggestion(fingerprint),
+  },
+
+  wiki: {
+    list:   ():                                              Promise<WikiPageRow[]>      => wikiRepo.listPages(),
+    get:    (id: string):                                    Promise<WikiPageRow | null> => wikiRepo.getPage(id),
+    insert: (input: InsertWikiPageInput):                    Promise<WikiPageRow>        => wikiRepo.insertPage(input),
+    update: (id: string, input: UpdateWikiPageInput):        Promise<WikiPageRow | null> => wikiRepo.updatePage(id, input),
+    delete: (id: string):                                    Promise<void>               => wikiRepo.deletePage(id),
   },
 
   vault: {

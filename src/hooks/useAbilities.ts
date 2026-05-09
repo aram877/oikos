@@ -39,6 +39,7 @@ interface MemberRow {
   ai_access:        AccessLevel
   messaging_access: AccessLevel
   vault_access:     AccessLevel
+  wiki_access:      AccessLevel
 }
 
 // Maps a Feature name to its DB column name
@@ -69,7 +70,7 @@ export function useAbilities(): UseAbilitiesResult {
 
         const { data } = await supabase
           .from('account_members')
-          .select('role, finance_access, shopping_access, calendar_access, settings_access, ai_access, messaging_access, vault_access')
+          .select('role, finance_access, shopping_access, calendar_access, settings_access, ai_access, messaging_access, vault_access, wiki_access')
           .eq('account_id', accountId)
           .single()
 

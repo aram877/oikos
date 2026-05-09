@@ -54,6 +54,7 @@ All data is in Supabase (Postgres + Auth + Realtime + Storage).
 - [Messages](./messages.md) — group chat + DMs with read receipts.
 - [Notifications](./notifications.md) — bell with realtime sync.
 - [Password vault](./password-vault.md) — E2E-encrypted shared household passwords.
+- [Wiki](./wiki.md) — shared markdown notes for household institutional knowledge.
 
 ### Settings & system
 
