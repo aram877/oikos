@@ -78,6 +78,9 @@ migrations=(
 
   # 2026-05-09 — shared done state on shopping items
   "supabase/add_shopping_done_state.sql"
+
+  # 2026-05-09 — household wiki / manuals
+  "supabase/add_wiki.sql"
 )
 
 {

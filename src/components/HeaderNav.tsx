@@ -34,6 +34,7 @@ const NAV: NavEntry[] = [
   { kind: 'link', label: 'Calendar',  href: '/calendar'  },
   { kind: 'link', label: 'Messages',  href: '/messages', badge: true },
   { kind: 'link', label: 'Vault',     href: '/vault'     },
+  { kind: 'link', label: 'Wiki',      href: '/wiki'      },
   { kind: 'link', label: 'Household', href: '/household' },
 ]
 
