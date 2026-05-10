@@ -37,16 +37,26 @@ UPDATE public.invitations      SET role = 'parent' WHERE role = 'member';
 -- 3. ADD new constraints (rows are now valid)
 -- =============================================================================
 
-ALTER TABLE public.account_members
-  ADD CONSTRAINT account_members_role_check
-  CHECK (role IN ('admin', 'parent', 'child'));
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'account_members_role_check') THEN
+    ALTER TABLE public.account_members
+      ADD CONSTRAINT account_members_role_check
+      CHECK (role IN ('admin', 'parent', 'child'));
+  END IF;
+END $$;
 
 ALTER TABLE public.account_members
   ALTER COLUMN role SET DEFAULT 'parent';
 
-ALTER TABLE public.invitations
-  ADD CONSTRAINT invitations_role_check
-  CHECK (role IN ('parent', 'child'));
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'invitations_role_check') THEN
+    ALTER TABLE public.invitations
+      ADD CONSTRAINT invitations_role_check
+      CHECK (role IN ('parent', 'child'));
+  END IF;
+END $$;
 
 ALTER TABLE public.invitations
   ALTER COLUMN role SET DEFAULT 'parent';

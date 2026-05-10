@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { buildPrompt } from '@/lib/analyzeWithAI'
 import type { AnalystReport } from '@/lib/analyst'
+import { createClient } from '@/lib/supabase/server'
 
 const VALID_CLAUDE_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6']
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
@@ -8,7 +9,20 @@ const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
 const VALID_GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it']
 const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile'
 
+const MAX_REPORT_BYTES = 256 * 1024
+
 export async function POST(req: NextRequest) {
+  // 0. Require an authenticated Oikos user.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // 0a. Cap input size before parsing.
+  const contentLength = Number(req.headers.get('content-length') ?? '0')
+  if (contentLength > MAX_REPORT_BYTES) {
+    return NextResponse.json({ error: 'Report too large.' }, { status: 413 })
+  }
+
   // 1. Extract Bearer token
   const auth = req.headers.get('authorization') ?? ''
   const apiKey = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''

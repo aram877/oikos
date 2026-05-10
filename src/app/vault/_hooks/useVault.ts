@@ -15,6 +15,8 @@ import {
   encryptJson,
   verifyKey,
   KDF_ITERS_DEFAULT,
+  KDF_ITERS_MIN,
+  VAULT_MIN_PASSPHRASE,
 } from '@/lib/vaultCrypto'
 
 export type VaultStatus =
@@ -84,7 +86,9 @@ export function useVault(): UseVaultResult {
   // ── Setup ───────────────────────────────────────────────────────────────── //
 
   const setup = useCallback(async (passphrase: string) => {
-    if (passphrase.length < 8) throw new Error('Passphrase must be at least 8 characters.')
+    if (passphrase.length < VAULT_MIN_PASSPHRASE) {
+      throw new Error(`Passphrase must be at least ${VAULT_MIN_PASSPHRASE} characters.`)
+    }
     const bundle = await buildSetupBundle(passphrase)
     const created = await dbClient.vault.setup({
       kdf:         'PBKDF2-SHA256',
@@ -106,7 +110,10 @@ export function useVault(): UseVaultResult {
     setError(null)
     try {
       const salt = base64ToBytes(meta.salt_b64)
-      const key  = await deriveKey(passphrase, salt, meta.kdf_iters)
+      // Clamp the iteration count: a malicious server could return a
+      // dramatically lower value to weaken offline brute-force resistance.
+      const iters = Math.max(meta.kdf_iters, KDF_ITERS_MIN)
+      const key  = await deriveKey(passphrase, salt, iters)
       const ok   = await verifyKey(key, { ciphertext_b64: meta.verifier_ct, iv_b64: meta.verifier_iv })
       if (!ok) {
         setError('Wrong passphrase.')

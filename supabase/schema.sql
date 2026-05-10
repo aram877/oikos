@@ -158,16 +158,32 @@ CREATE INDEX IF NOT EXISTS transactions_account_date_idx
 -- Must be a plain constraint (not a partial index) so PostgREST's ON CONFLICT
 -- can use it. NULL import_hash = manually entered; NULLs are never equal in
 -- Postgres uniqueness checks, so manual entries never conflict with each other.
-ALTER TABLE public.transactions
-  ADD CONSTRAINT IF NOT EXISTS transactions_account_import_hash_key
-  UNIQUE (account_id, import_hash);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'transactions_account_import_hash_key'
+  ) THEN
+    ALTER TABLE public.transactions
+      ADD CONSTRAINT transactions_account_import_hash_key
+      UNIQUE (account_id, import_hash);
+  END IF;
+END $$;
 
 -- Calendar events: unique dedup constraint for ICS import.
 -- NULL source_uid values (manually created events) are never equal in
 -- Postgres uniqueness checks, so manual events are unaffected.
-ALTER TABLE public.calendar_events
-  ADD CONSTRAINT IF NOT EXISTS calendar_events_account_source_uid_key
-  UNIQUE (account_id, source_uid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'calendar_events_account_source_uid_key'
+  ) THEN
+    ALTER TABLE public.calendar_events
+      ADD CONSTRAINT calendar_events_account_source_uid_key
+      UNIQUE (account_id, source_uid);
+  END IF;
+END $$;
 
 -- Categories: fast lookup by account
 CREATE INDEX IF NOT EXISTS categories_account_idx

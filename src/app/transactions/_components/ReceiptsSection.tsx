@@ -264,6 +264,8 @@ function Lightbox({
           <iframe
             src={r.signed_url}
             title={r.original_name ?? 'Receipt PDF'}
+            sandbox=""
+            referrerPolicy="no-referrer"
             className="h-[88vh] w-[92vw] max-w-3xl rounded-lg bg-white shadow-2xl"
           />
         )}

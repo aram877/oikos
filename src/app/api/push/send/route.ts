@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
+import { timingSafeEqual } from 'node:crypto'
 
 webpush.setVapidDetails(
   'mailto:admin@household.app',
@@ -16,10 +17,17 @@ interface WebhookRecord {
   data?:   Record<string, unknown>
 }
 
+function safeEqual(a: string | null | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false
+  const ab = Buffer.from(a)
+  const bb = Buffer.from(b)
+  if (ab.length !== bb.length) return false
+  return timingSafeEqual(ab, bb)
+}
+
 export async function POST(request: NextRequest) {
-  // Verify webhook secret
   const secret = request.headers.get('x-webhook-secret')
-  if (!secret || secret !== process.env.WEBHOOK_SECRET) {
+  if (!safeEqual(secret, process.env.WEBHOOK_SECRET)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -28,11 +36,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as { record?: WebhookRecord }
     if (!body.record?.user_id) throw new Error('Missing record.user_id')
     record = body.record
-  } catch (e: unknown) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Invalid payload' },
-      { status: 400 },
-    )
+  } catch {
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
   const admin = createAdminClient(
@@ -46,7 +51,8 @@ export async function POST(request: NextRequest) {
     .eq('user_id', record.user_id)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[push/send] subscription fetch failed', error)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 
   if (!subscriptions || subscriptions.length === 0) {

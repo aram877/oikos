@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { gcFetch }      from '../_lib/token'
+import { isRequisitionOwner, setGcAccountIds } from '../_lib/ownership'
 
 export interface GCAccount {
   id:   string
@@ -20,12 +21,19 @@ export async function GET(request: NextRequest) {
   const reqId = request.nextUrl.searchParams.get('requisition_id')
   if (!reqId) return NextResponse.json({ error: 'requisition_id required' }, { status: 400 })
 
+  // Verify the caller created this requisition. Without this check anyone
+  // authenticated can pull another user's bank accounts using the shared
+  // GoCardless secret.
+  if (!(await isRequisitionOwner(reqId, user.id))) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   try {
-    // 1. Get the requisition to retrieve account IDs
     const reqRes = await gcFetch(`/requisitions/${reqId}/`)
     if (!reqRes.ok) {
       const text = await reqRes.text()
-      return NextResponse.json({ error: `GoCardless: ${text}` }, { status: reqRes.status })
+      console.error('[gocardless/accounts] gc requisition error', reqRes.status, text.slice(0, 500))
+      return NextResponse.json({ error: 'GoCardless error' }, { status: reqRes.status })
     }
 
     const reqData = await reqRes.json() as { accounts: string[]; status: string }
@@ -37,7 +45,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // 2. Fetch details for each account (IBAN, name)
+    // Cache the discovered gc_account_ids so /transactions can verify
+    // ownership of an individual account later.
+    await setGcAccountIds(reqId, reqData.accounts)
+
     const accounts = await Promise.all(
       reqData.accounts.map(async (accountId): Promise<GCAccount> => {
         const detailRes = await gcFetch(`/accounts/${accountId}/details/`)
@@ -56,6 +67,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ accounts, status: reqData.status })
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    console.error('[gocardless/accounts] error', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

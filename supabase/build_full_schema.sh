@@ -81,13 +81,32 @@ migrations=(
 
   # 2026-05-09 — household wiki / manuals
   "supabase/add_wiki.sql"
+
+  # 2026-05-09 — security: email match on accept_invitation; finance_access on
+  #              budgets / savings_goals / recurring_transactions /
+  #              categorization_rules
+  "supabase/secure_invitation_email_check.sql"
+  "supabase/secure_finance_access_policies.sql"
+
+  # 2026-05-09 — security: gocardless requisition ownership tracking
+  "supabase/add_gocardless_requisitions.sql"
+
+  # 2026-05-09 — security: messages recipient_id check, messaging_access,
+  #              account_members + categories WITH CHECK,
+  #              notifications immutable-column trigger
+  "supabase/secure_rls_hardening.sql"
 )
 
 {
   echo "-- =================================================================="
   echo "-- Oikos — full database schema"
   echo "-- Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "-- Run this once in a fresh Supabase project's SQL editor."
+  echo "-- Run this in a Supabase SQL editor. Re-running is safe:"
+  echo "--   • CREATE POLICY  → preceded by DROP POLICY IF EXISTS"
+  echo "--   • CREATE FUNCTION → preceded by DROP FUNCTION IF EXISTS CASCADE"
+  echo "--   • CREATE TRIGGER  → preceded by DROP TRIGGER IF EXISTS"
+  echo "--   • ALTER PUBLICATION ADD TABLE → wrapped in pg_publication_tables guard"
+  echo "--   • CREATE TABLE / INDEX → IF NOT EXISTS"
   echo "-- =================================================================="
   echo ""
 
@@ -100,6 +119,51 @@ migrations=(
     cat "$f"
     echo ""
   done
-} > "$OUTPUT"
+} | perl -0777 -pe '
+    # ── Idempotent CREATE [OR REPLACE] FUNCTION ─────────────────────────
+    # CREATE OR REPLACE FUNCTION cannot change return type. Within a single
+    # full-schema run, several migrations evolve the same function — that
+    # would fail without a DROP between them. Drop by name+args (CASCADE
+    # also drops dependent triggers, which the trigger transform below
+    # then re-creates).
+    s{
+      (CREATE \s+ (?:OR \s+ REPLACE \s+)? FUNCTION \s+ ([\w.]+) \s* (\([^)]*\)))
+    }{
+      "DROP FUNCTION IF EXISTS $2$3 CASCADE;\n$1"
+    }gexs;
+
+    # ── Idempotent CREATE POLICY ────────────────────────────────────────
+    # No CREATE POLICY IF NOT EXISTS in Postgres — prepend a matching DROP.
+    s{
+      (CREATE \s+ POLICY \s+ "[^"]+" \s+ ON \s+ [\w.]+)
+    }{
+      my $stmt = $1;
+      (my $drop = $stmt) =~ s/^CREATE \s+ POLICY/DROP POLICY IF EXISTS/x;
+      "$drop;\n$stmt"
+    }gex;
+
+    # ── Idempotent CREATE TRIGGER ───────────────────────────────────────
+    # No CREATE OR REPLACE TRIGGER pre-PG14 → prepend DROP TRIGGER IF EXISTS.
+    s{
+      (CREATE \s+ TRIGGER \s+ (\w+) \s+
+       (?:BEFORE|AFTER|INSTEAD \s+ OF) \s+
+       (?:\w+ (?:\s+ OR \s+ \w+)*) \s+
+       ON \s+ ([\w.]+))
+    }{
+      "DROP TRIGGER IF EXISTS $2 ON $3;\n$1"
+    }gex;
+
+    # ── Idempotent ALTER PUBLICATION ADD TABLE ──────────────────────────
+    # Wrap each in a DO block that checks pg_publication_tables first.
+    s{
+      ALTER \s+ PUBLICATION \s+ (\w+) \s+ ADD \s+ TABLE \s+ ([\w]+) \. ([\w]+) \s* ;
+    }{
+      "DO \$pub\$ BEGIN\n" .
+      "  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname=\x27$1\x27 AND schemaname=\x27$2\x27 AND tablename=\x27$3\x27) THEN\n" .
+      "    ALTER PUBLICATION $1 ADD TABLE $2.$3;\n" .
+      "  END IF;\n" .
+      "END \$pub\$;"
+    }gex;
+' > "$OUTPUT"
 
 echo "Written → $OUTPUT  ($(wc -l < "$OUTPUT") lines)"

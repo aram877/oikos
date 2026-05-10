@@ -14,6 +14,12 @@
  */
 
 export const KDF_ITERS_DEFAULT = 600_000
+/** Reject any server-supplied iteration count below this floor. A malicious
+ *  server could otherwise return kdf_iters: 1 to weaken offline brute-force
+ *  resistance for any captured DB row. */
+export const KDF_ITERS_MIN     = 600_000
+/** Minimum master-passphrase length. */
+export const VAULT_MIN_PASSPHRASE = 12
 const KDF_NAME      = 'PBKDF2'
 const HASH          = 'SHA-256'
 const KEY_BITS      = 256

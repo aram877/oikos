@@ -1,7 +1,12 @@
 -- ==================================================================
 -- Oikos — full database schema
--- Generated: 2026-05-09T08:44:51Z
--- Run this once in a fresh Supabase project's SQL editor.
+-- Generated: 2026-05-10T09:04:35Z
+-- Run this in a Supabase SQL editor. Re-running is safe:
+--   • CREATE POLICY  → preceded by DROP POLICY IF EXISTS
+--   • CREATE FUNCTION → preceded by DROP FUNCTION IF EXISTS CASCADE
+--   • CREATE TRIGGER  → preceded by DROP TRIGGER IF EXISTS
+--   • ALTER PUBLICATION ADD TABLE → wrapped in pg_publication_tables guard
+--   • CREATE TABLE / INDEX → IF NOT EXISTS
 -- ==================================================================
 
 -- ────────────────────────────────────────────────────────────────────
@@ -168,16 +173,32 @@ CREATE INDEX IF NOT EXISTS transactions_account_date_idx
 -- Must be a plain constraint (not a partial index) so PostgREST's ON CONFLICT
 -- can use it. NULL import_hash = manually entered; NULLs are never equal in
 -- Postgres uniqueness checks, so manual entries never conflict with each other.
-ALTER TABLE public.transactions
-  ADD CONSTRAINT IF NOT EXISTS transactions_account_import_hash_key
-  UNIQUE (account_id, import_hash);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'transactions_account_import_hash_key'
+  ) THEN
+    ALTER TABLE public.transactions
+      ADD CONSTRAINT transactions_account_import_hash_key
+      UNIQUE (account_id, import_hash);
+  END IF;
+END $$;
 
 -- Calendar events: unique dedup constraint for ICS import.
 -- NULL source_uid values (manually created events) are never equal in
 -- Postgres uniqueness checks, so manual events are unaffected.
-ALTER TABLE public.calendar_events
-  ADD CONSTRAINT IF NOT EXISTS calendar_events_account_source_uid_key
-  UNIQUE (account_id, source_uid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'calendar_events_account_source_uid_key'
+  ) THEN
+    ALTER TABLE public.calendar_events
+      ADD CONSTRAINT calendar_events_account_source_uid_key
+      UNIQUE (account_id, source_uid);
+  END IF;
+END $$;
 
 -- Categories: fast lookup by account
 CREATE INDEX IF NOT EXISTS categories_account_idx
@@ -202,6 +223,8 @@ ALTER TABLE public.notifications   ENABLE ROW LEVEL SECURITY;
 -- accounts
 -- -----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS "accounts: members can read"
+  ON public.accounts;
 CREATE POLICY "accounts: members can read"
   ON public.accounts FOR SELECT
   USING (
@@ -212,6 +235,8 @@ CREATE POLICY "accounts: members can read"
     )
   );
 
+DROP POLICY IF EXISTS "accounts: owners can update"
+  ON public.accounts;
 CREATE POLICY "accounts: owners can update"
   ON public.accounts FOR UPDATE
   USING (
@@ -230,6 +255,8 @@ CREATE POLICY "accounts: owners can update"
 -- Each user can only see their own membership rows.
 -- "List all members of an account" is handled by get_account_members() RPC
 -- (SECURITY DEFINER) to avoid a self-referential recursion here.
+DROP POLICY IF EXISTS "account_members: read own rows"
+  ON public.account_members;
 CREATE POLICY "account_members: read own rows"
   ON public.account_members FOR SELECT
   USING (user_id = auth.uid());
@@ -237,6 +264,8 @@ CREATE POLICY "account_members: read own rows"
 -- Owners can remove anyone; any user can remove themselves.
 -- Note: direct DELETE is discouraged — prefer remove_account_member() RPC
 -- which is SECURITY DEFINER and bypasses the self-join RLS issue.
+DROP POLICY IF EXISTS "account_members: delete self or as owner"
+  ON public.account_members;
 CREATE POLICY "account_members: delete self or as owner"
   ON public.account_members FOR DELETE
   USING (
@@ -250,6 +279,8 @@ CREATE POLICY "account_members: delete self or as owner"
   );
 
 -- Owners can update member permissions
+DROP POLICY IF EXISTS "account_members: owners can update permissions"
+  ON public.account_members;
 CREATE POLICY "account_members: owners can update permissions"
   ON public.account_members FOR UPDATE
   USING (
@@ -265,6 +296,8 @@ CREATE POLICY "account_members: owners can update permissions"
 -- categories
 -- -----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS "categories: members can read"
+  ON public.categories;
 CREATE POLICY "categories: members can read"
   ON public.categories FOR SELECT
   USING (
@@ -276,6 +309,8 @@ CREATE POLICY "categories: members can read"
     )
   );
 
+DROP POLICY IF EXISTS "categories: members can insert"
+  ON public.categories;
 CREATE POLICY "categories: members can insert"
   ON public.categories FOR INSERT
   WITH CHECK (
@@ -287,6 +322,8 @@ CREATE POLICY "categories: members can insert"
     )
   );
 
+DROP POLICY IF EXISTS "categories: members can update"
+  ON public.categories;
 CREATE POLICY "categories: members can update"
   ON public.categories FOR UPDATE
   USING (
@@ -298,6 +335,8 @@ CREATE POLICY "categories: members can update"
     )
   );
 
+DROP POLICY IF EXISTS "categories: members can delete"
+  ON public.categories;
 CREATE POLICY "categories: members can delete"
   ON public.categories FOR DELETE
   USING (
@@ -313,6 +352,8 @@ CREATE POLICY "categories: members can delete"
 -- transactions
 -- -----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS "transactions: members can read"
+  ON public.transactions;
 CREATE POLICY "transactions: members can read"
   ON public.transactions FOR SELECT
   USING (
@@ -324,6 +365,8 @@ CREATE POLICY "transactions: members can read"
     )
   );
 
+DROP POLICY IF EXISTS "transactions: members can insert"
+  ON public.transactions;
 CREATE POLICY "transactions: members can insert"
   ON public.transactions FOR INSERT
   WITH CHECK (
@@ -335,6 +378,8 @@ CREATE POLICY "transactions: members can insert"
     )
   );
 
+DROP POLICY IF EXISTS "transactions: members can update"
+  ON public.transactions;
 CREATE POLICY "transactions: members can update"
   ON public.transactions FOR UPDATE
   USING (
@@ -346,6 +391,8 @@ CREATE POLICY "transactions: members can update"
     )
   );
 
+DROP POLICY IF EXISTS "transactions: members can delete"
+  ON public.transactions;
 CREATE POLICY "transactions: members can delete"
   ON public.transactions FOR DELETE
   USING (
@@ -361,6 +408,8 @@ CREATE POLICY "transactions: members can delete"
 -- invitations
 -- -----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS "invitations: owners can read"
+  ON public.invitations;
 CREATE POLICY "invitations: owners can read"
   ON public.invitations FOR SELECT
   USING (
@@ -372,6 +421,8 @@ CREATE POLICY "invitations: owners can read"
     )
   );
 
+DROP POLICY IF EXISTS "invitations: owners can insert"
+  ON public.invitations;
 CREATE POLICY "invitations: owners can insert"
   ON public.invitations FOR INSERT
   WITH CHECK (
@@ -383,6 +434,8 @@ CREATE POLICY "invitations: owners can insert"
     )
   );
 
+DROP POLICY IF EXISTS "invitations: owners can delete"
+  ON public.invitations;
 CREATE POLICY "invitations: owners can delete"
   ON public.invitations FOR DELETE
   USING (
@@ -398,12 +451,18 @@ CREATE POLICY "invitations: owners can delete"
 -- profiles
 -- -----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS "authenticated users can read profiles"
+  ON public.profiles;
 CREATE POLICY "authenticated users can read profiles"
   ON public.profiles FOR SELECT USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "users can insert own profile"
+  ON public.profiles;
 CREATE POLICY "users can insert own profile"
   ON public.profiles FOR INSERT WITH CHECK (id = auth.uid());
 
+DROP POLICY IF EXISTS "users can update own profile"
+  ON public.profiles;
 CREATE POLICY "users can update own profile"
   ON public.profiles FOR UPDATE USING (id = auth.uid());
 
@@ -415,15 +474,21 @@ DROP POLICY IF EXISTS "user reads own notifications"   ON public.notifications;
 DROP POLICY IF EXISTS "user updates own notifications" ON public.notifications;
 DROP POLICY IF EXISTS "user deletes own notifications" ON public.notifications;
 
+DROP POLICY IF EXISTS "user reads own notifications"
+  ON public.notifications;
 CREATE POLICY "user reads own notifications"
   ON public.notifications FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "user updates own notifications"
+  ON public.notifications;
 CREATE POLICY "user updates own notifications"
   ON public.notifications FOR UPDATE
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "user deletes own notifications"
+  ON public.notifications;
 CREATE POLICY "user deletes own notifications"
   ON public.notifications FOR DELETE
   USING (user_id = auth.uid());
@@ -432,6 +497,8 @@ CREATE POLICY "user deletes own notifications"
 -- shopping_items
 -- -----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS "members select shopping"
+  ON public.shopping_items;
 CREATE POLICY "members select shopping"
   ON public.shopping_items FOR SELECT
   USING (account_id IN (
@@ -440,6 +507,8 @@ CREATE POLICY "members select shopping"
       AND (role = 'owner' OR shopping_access IN ('read', 'write'))
   ));
 
+DROP POLICY IF EXISTS "members insert shopping"
+  ON public.shopping_items;
 CREATE POLICY "members insert shopping"
   ON public.shopping_items FOR INSERT
   WITH CHECK (account_id IN (
@@ -448,6 +517,8 @@ CREATE POLICY "members insert shopping"
       AND (role = 'owner' OR shopping_access = 'write')
   ));
 
+DROP POLICY IF EXISTS "members delete shopping"
+  ON public.shopping_items;
 CREATE POLICY "members delete shopping"
   ON public.shopping_items FOR DELETE
   USING (account_id IN (
@@ -460,6 +531,8 @@ CREATE POLICY "members delete shopping"
 -- calendar_events
 -- -----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS "members select calendar"
+  ON public.calendar_events;
 CREATE POLICY "members select calendar"
   ON public.calendar_events FOR SELECT
   USING (account_id IN (
@@ -468,6 +541,8 @@ CREATE POLICY "members select calendar"
       AND (role = 'owner' OR calendar_access IN ('read', 'write'))
   ));
 
+DROP POLICY IF EXISTS "members insert calendar"
+  ON public.calendar_events;
 CREATE POLICY "members insert calendar"
   ON public.calendar_events FOR INSERT
   WITH CHECK (account_id IN (
@@ -476,6 +551,8 @@ CREATE POLICY "members insert calendar"
       AND (role = 'owner' OR calendar_access = 'write')
   ));
 
+DROP POLICY IF EXISTS "members update calendar"
+  ON public.calendar_events;
 CREATE POLICY "members update calendar"
   ON public.calendar_events FOR UPDATE
   USING (account_id IN (
@@ -484,6 +561,8 @@ CREATE POLICY "members update calendar"
       AND (role = 'owner' OR calendar_access = 'write')
   ));
 
+DROP POLICY IF EXISTS "members delete calendar"
+  ON public.calendar_events;
 CREATE POLICY "members delete calendar"
   ON public.calendar_events FOR DELETE
   USING (account_id IN (
@@ -502,6 +581,10 @@ CREATE POLICY "members delete calendar"
 -- Called by: transactionRepo.getMonthlySummary
 -- Returns income + expense totals grouped by category for a given YYYY-MM.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_monthly_summary(
+  p_account_id  uuid,
+  p_year_month  text    -- 'YYYY-MM'
+) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_monthly_summary(
   p_account_id  uuid,
   p_year_month  text    -- 'YYYY-MM'
@@ -549,6 +632,7 @@ $$;
 -- Returns members with their auth email (requires access to auth.users).
 -- SECURITY DEFINER avoids self-referential RLS recursion on account_members.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_account_members(p_account_id uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_account_members(p_account_id uuid)
 RETURNS TABLE (
   user_id         uuid,
@@ -595,6 +679,7 @@ $$;
 -- Called by: /invite/accept page to show household name + inviter name.
 -- Any authenticated user who possesses the token can call this.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_invitation_by_token(p_token uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_invitation_by_token(p_token uuid)
 RETURNS TABLE (account_name text, invited_by_name text)
 LANGUAGE plpgsql
@@ -624,6 +709,7 @@ $$;
 -- Removes the user from their current account, joins the invited account,
 -- deletes the in-app invitation notification, and marks the token used.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.accept_invitation(p_token uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.accept_invitation(p_token uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -666,6 +752,10 @@ $$;
 -- Called by: useHouseholdMembers hook (owner removes a member).
 -- SECURITY DEFINER bypasses the self-join RLS issue on account_members DELETE.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.remove_account_member(
+  p_account_id uuid,
+  p_member_id  uuid
+) CASCADE;
 CREATE OR REPLACE FUNCTION public.remove_account_member(
   p_account_id uuid,
   p_member_id  uuid
@@ -707,6 +797,7 @@ $$;
 -- Returns the user's current account_id, or creates a fresh personal account
 -- if they have none (e.g. after being removed from a household).
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_or_create_account() CASCADE;
 CREATE OR REPLACE FUNCTION public.get_or_create_account()
 RETURNS uuid
 LANGUAGE plpgsql
@@ -761,6 +852,7 @@ $$;
 -- Creates an in-app notification for the invitee if they are already registered.
 -- Unregistered invitees have no auth.users row yet — they get only the email.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.handle_invitation_notification() CASCADE;
 CREATE OR REPLACE FUNCTION public.handle_invitation_notification()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -814,6 +906,7 @@ $$;
 -- Creates a personal account + default categories for brand-new registrations.
 -- Invited users skip account creation (they join via accept_invitation()).
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -871,6 +964,7 @@ $$;
 -- Drop first so re-running the script is idempotent
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -879,6 +973,7 @@ CREATE TRIGGER on_auth_user_created
 
 DROP TRIGGER IF EXISTS on_invitation_created ON public.invitations;
 
+DROP TRIGGER IF EXISTS on_invitation_created ON public.invitations;
 CREATE TRIGGER on_invitation_created
   AFTER INSERT ON public.invitations
   FOR EACH ROW EXECUTE FUNCTION public.handle_invitation_notification();
@@ -907,10 +1002,26 @@ GRANT EXECUTE ON FUNCTION public.get_or_create_account()           TO authentica
 -- 7. REALTIME
 -- =============================================================================
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_items;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.account_members;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='shopping_items') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_items;
+  END IF;
+END $pub$;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='calendar_events') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
+  END IF;
+END $pub$;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='notifications') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+  END IF;
+END $pub$;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='account_members') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.account_members;
+  END IF;
+END $pub$;
 
 
 -- =============================================================================
@@ -921,17 +1032,25 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT DO NOTHING;
 
+DROP POLICY IF EXISTS "avatars are publicly readable"
+  ON storage.objects;
 CREATE POLICY "avatars are publicly readable"
   ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
 
+DROP POLICY IF EXISTS "users upload own avatar"
+  ON storage.objects;
 CREATE POLICY "users upload own avatar"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
+DROP POLICY IF EXISTS "users update own avatar"
+  ON storage.objects;
 CREATE POLICY "users update own avatar"
   ON storage.objects FOR UPDATE
   USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
+DROP POLICY IF EXISTS "users delete own avatar"
+  ON storage.objects;
 CREATE POLICY "users delete own avatar"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
@@ -956,6 +1075,8 @@ CREATE POLICY "users delete own avatar"
 DROP POLICY IF EXISTS "account_members: members can read" ON public.account_members;
 
 -- Replace with a simple, non-recursive policy
+DROP POLICY IF EXISTS "account_members: read own rows"
+  ON public.account_members;
 CREATE POLICY "account_members: read own rows"
   ON public.account_members FOR SELECT
   USING (user_id = auth.uid());
@@ -975,9 +1096,17 @@ CREATE POLICY "account_members: read own rows"
 
 DROP INDEX IF EXISTS transactions_account_import_hash_uidx;
 
-ALTER TABLE public.transactions
-  ADD CONSTRAINT transactions_account_import_hash_key
-  UNIQUE (account_id, import_hash);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'transactions_account_import_hash_key'
+  ) THEN
+    ALTER TABLE public.transactions
+      ADD CONSTRAINT transactions_account_import_hash_key
+      UNIQUE (account_id, import_hash);
+  END IF;
+END $$;
 
 -- ────────────────────────────────────────────────────────────────────
 -- fix_get_account_members_ambiguous_user_id.sql
@@ -993,6 +1122,7 @@ ALTER TABLE public.transactions
 --   "column reference 'user_id' is ambiguous"
 -- Fix: alias the table in the EXISTS subquery and qualify every column.
 
+DROP FUNCTION IF EXISTS public.get_account_members(p_account_id uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_account_members(p_account_id uuid)
 RETURNS TABLE (
   user_id   uuid,
@@ -1036,6 +1166,7 @@ $$;
 
 -- ── 1. Update trigger to seed categories on every new account ────────────────
 
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1206,18 +1337,24 @@ ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
 
 -- ── Shopping Items policies ───────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "members select shopping"
+  ON public.shopping_items;
 CREATE POLICY "members select shopping"
   ON public.shopping_items FOR SELECT
   USING (account_id IN (
     SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "members insert shopping"
+  ON public.shopping_items;
 CREATE POLICY "members insert shopping"
   ON public.shopping_items FOR INSERT
   WITH CHECK (account_id IN (
     SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "members delete shopping"
+  ON public.shopping_items;
 CREATE POLICY "members delete shopping"
   ON public.shopping_items FOR DELETE
   USING (account_id IN (
@@ -1226,24 +1363,32 @@ CREATE POLICY "members delete shopping"
 
 -- ── Calendar Events policies ──────────────────────────────────────────────────
 
+DROP POLICY IF EXISTS "members select calendar"
+  ON public.calendar_events;
 CREATE POLICY "members select calendar"
   ON public.calendar_events FOR SELECT
   USING (account_id IN (
     SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "members insert calendar"
+  ON public.calendar_events;
 CREATE POLICY "members insert calendar"
   ON public.calendar_events FOR INSERT
   WITH CHECK (account_id IN (
     SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "members update calendar"
+  ON public.calendar_events;
 CREATE POLICY "members update calendar"
   ON public.calendar_events FOR UPDATE
   USING (account_id IN (
     SELECT account_id FROM public.account_members WHERE user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "members delete calendar"
+  ON public.calendar_events;
 CREATE POLICY "members delete calendar"
   ON public.calendar_events FOR DELETE
   USING (account_id IN (
@@ -1255,8 +1400,16 @@ CREATE POLICY "members delete calendar"
 -- 3. REALTIME
 -- =============================================================================
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_items;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='shopping_items') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_items;
+  END IF;
+END $pub$;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='calendar_events') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events;
+  END IF;
+END $pub$;
 
 -- ────────────────────────────────────────────────────────────────────
 -- add_profiles.sql
@@ -1280,12 +1433,18 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- 2. RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "authenticated users can read profiles"
+  ON public.profiles;
 CREATE POLICY "authenticated users can read profiles"
   ON public.profiles FOR SELECT USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "users can insert own profile"
+  ON public.profiles;
 CREATE POLICY "users can insert own profile"
   ON public.profiles FOR INSERT WITH CHECK (id = auth.uid());
 
+DROP POLICY IF EXISTS "users can update own profile"
+  ON public.profiles;
 CREATE POLICY "users can update own profile"
   ON public.profiles FOR UPDATE USING (id = auth.uid());
 
@@ -1299,17 +1458,25 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT DO NOTHING;
 
+DROP POLICY IF EXISTS "avatars are publicly readable"
+  ON storage.objects;
 CREATE POLICY "avatars are publicly readable"
   ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
 
+DROP POLICY IF EXISTS "users upload own avatar"
+  ON storage.objects;
 CREATE POLICY "users upload own avatar"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
+DROP POLICY IF EXISTS "users update own avatar"
+  ON storage.objects;
 CREATE POLICY "users update own avatar"
   ON storage.objects FOR UPDATE
   USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
+DROP POLICY IF EXISTS "users delete own avatar"
+  ON storage.objects;
 CREATE POLICY "users delete own avatar"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
@@ -1354,6 +1521,8 @@ UPDATE public.account_members
 DROP POLICY IF EXISTS "account_members: owners can update permissions"
   ON public.account_members;
 
+DROP POLICY IF EXISTS "account_members: owners can update permissions"
+  ON public.account_members;
 CREATE POLICY "account_members: owners can update permissions"
   ON public.account_members FOR UPDATE
   USING (
@@ -1375,6 +1544,8 @@ DROP POLICY IF EXISTS "transactions: members can insert" ON public.transactions;
 DROP POLICY IF EXISTS "transactions: members can update" ON public.transactions;
 DROP POLICY IF EXISTS "transactions: members can delete" ON public.transactions;
 
+DROP POLICY IF EXISTS "transactions: members can read"
+  ON public.transactions;
 CREATE POLICY "transactions: members can read"
   ON public.transactions FOR SELECT
   USING (
@@ -1386,6 +1557,8 @@ CREATE POLICY "transactions: members can read"
     )
   );
 
+DROP POLICY IF EXISTS "transactions: members can insert"
+  ON public.transactions;
 CREATE POLICY "transactions: members can insert"
   ON public.transactions FOR INSERT
   WITH CHECK (
@@ -1397,6 +1570,8 @@ CREATE POLICY "transactions: members can insert"
     )
   );
 
+DROP POLICY IF EXISTS "transactions: members can update"
+  ON public.transactions;
 CREATE POLICY "transactions: members can update"
   ON public.transactions FOR UPDATE
   USING (
@@ -1408,6 +1583,8 @@ CREATE POLICY "transactions: members can update"
     )
   );
 
+DROP POLICY IF EXISTS "transactions: members can delete"
+  ON public.transactions;
 CREATE POLICY "transactions: members can delete"
   ON public.transactions FOR DELETE
   USING (
@@ -1429,6 +1606,8 @@ DROP POLICY IF EXISTS "categories: members can insert" ON public.categories;
 DROP POLICY IF EXISTS "categories: members can update" ON public.categories;
 DROP POLICY IF EXISTS "categories: members can delete" ON public.categories;
 
+DROP POLICY IF EXISTS "categories: members can read"
+  ON public.categories;
 CREATE POLICY "categories: members can read"
   ON public.categories FOR SELECT
   USING (
@@ -1440,6 +1619,8 @@ CREATE POLICY "categories: members can read"
     )
   );
 
+DROP POLICY IF EXISTS "categories: members can insert"
+  ON public.categories;
 CREATE POLICY "categories: members can insert"
   ON public.categories FOR INSERT
   WITH CHECK (
@@ -1451,6 +1632,8 @@ CREATE POLICY "categories: members can insert"
     )
   );
 
+DROP POLICY IF EXISTS "categories: members can update"
+  ON public.categories;
 CREATE POLICY "categories: members can update"
   ON public.categories FOR UPDATE
   USING (
@@ -1462,6 +1645,8 @@ CREATE POLICY "categories: members can update"
     )
   );
 
+DROP POLICY IF EXISTS "categories: members can delete"
+  ON public.categories;
 CREATE POLICY "categories: members can delete"
   ON public.categories FOR DELETE
   USING (
@@ -1482,6 +1667,8 @@ DROP POLICY IF EXISTS "members select shopping" ON public.shopping_items;
 DROP POLICY IF EXISTS "members insert shopping" ON public.shopping_items;
 DROP POLICY IF EXISTS "members delete shopping" ON public.shopping_items;
 
+DROP POLICY IF EXISTS "members select shopping"
+  ON public.shopping_items;
 CREATE POLICY "members select shopping"
   ON public.shopping_items FOR SELECT
   USING (account_id IN (
@@ -1490,6 +1677,8 @@ CREATE POLICY "members select shopping"
       AND (role = 'owner' OR shopping_access IN ('read', 'write'))
   ));
 
+DROP POLICY IF EXISTS "members insert shopping"
+  ON public.shopping_items;
 CREATE POLICY "members insert shopping"
   ON public.shopping_items FOR INSERT
   WITH CHECK (account_id IN (
@@ -1498,6 +1687,8 @@ CREATE POLICY "members insert shopping"
       AND (role = 'owner' OR shopping_access = 'write')
   ));
 
+DROP POLICY IF EXISTS "members delete shopping"
+  ON public.shopping_items;
 CREATE POLICY "members delete shopping"
   ON public.shopping_items FOR DELETE
   USING (account_id IN (
@@ -1516,6 +1707,8 @@ DROP POLICY IF EXISTS "members insert calendar" ON public.calendar_events;
 DROP POLICY IF EXISTS "members update calendar" ON public.calendar_events;
 DROP POLICY IF EXISTS "members delete calendar" ON public.calendar_events;
 
+DROP POLICY IF EXISTS "members select calendar"
+  ON public.calendar_events;
 CREATE POLICY "members select calendar"
   ON public.calendar_events FOR SELECT
   USING (account_id IN (
@@ -1524,6 +1717,8 @@ CREATE POLICY "members select calendar"
       AND (role = 'owner' OR calendar_access IN ('read', 'write'))
   ));
 
+DROP POLICY IF EXISTS "members insert calendar"
+  ON public.calendar_events;
 CREATE POLICY "members insert calendar"
   ON public.calendar_events FOR INSERT
   WITH CHECK (account_id IN (
@@ -1532,6 +1727,8 @@ CREATE POLICY "members insert calendar"
       AND (role = 'owner' OR calendar_access = 'write')
   ));
 
+DROP POLICY IF EXISTS "members update calendar"
+  ON public.calendar_events;
 CREATE POLICY "members update calendar"
   ON public.calendar_events FOR UPDATE
   USING (account_id IN (
@@ -1540,6 +1737,8 @@ CREATE POLICY "members update calendar"
       AND (role = 'owner' OR calendar_access = 'write')
   ));
 
+DROP POLICY IF EXISTS "members delete calendar"
+  ON public.calendar_events;
 CREATE POLICY "members delete calendar"
   ON public.calendar_events FOR DELETE
   USING (account_id IN (
@@ -1555,6 +1754,7 @@ CREATE POLICY "members delete calendar"
 
 DROP FUNCTION IF EXISTS public.get_account_members(uuid);
 
+DROP FUNCTION IF EXISTS public.get_account_members(p_account_id uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_account_members(p_account_id uuid)
 RETURNS TABLE (
   user_id         uuid,
@@ -1619,9 +1819,17 @@ ALTER TABLE public.calendar_events
 ALTER TABLE public.calendar_events
   ADD COLUMN IF NOT EXISTS source_uid text;
 
-ALTER TABLE public.calendar_events
-  ADD CONSTRAINT calendar_events_account_source_uid_key
-  UNIQUE (account_id, source_uid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'calendar_events_account_source_uid_key'
+  ) THEN
+    ALTER TABLE public.calendar_events
+      ADD CONSTRAINT calendar_events_account_source_uid_key
+      UNIQUE (account_id, source_uid);
+  END IF;
+END $$;
 
 -- ────────────────────────────────────────────────────────────────────
 -- add_transfer_flag.sql
@@ -1635,6 +1843,10 @@ ALTER TABLE public.transactions
   ADD COLUMN IF NOT EXISTS is_transfer boolean NOT NULL DEFAULT false;
 
 -- Update get_monthly_summary to exclude internal transfers from income/expense totals
+DROP FUNCTION IF EXISTS public.get_monthly_summary(
+  p_account_id  uuid,
+  p_year_month  text    -- 'YYYY-MM'
+) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_monthly_summary(
   p_account_id  uuid,
   p_year_month  text    -- 'YYYY-MM'
@@ -1703,24 +1915,33 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- Users can only read their own notifications
+DROP POLICY IF EXISTS "user reads own notifications"
+  ON public.notifications;
 CREATE POLICY "user reads own notifications"
   ON public.notifications FOR SELECT
   USING (user_id = auth.uid());
 
 -- Users can mark their own notifications as read
+DROP POLICY IF EXISTS "user updates own notifications"
+  ON public.notifications;
 CREATE POLICY "user updates own notifications"
   ON public.notifications FOR UPDATE
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
 -- Add to Realtime publication so clients get pushed updates
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='notifications') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+  END IF;
+END $pub$;
 
 
 -- -----------------------------------------------------------------------------
 -- 2. Trigger: create notification when an invitation is created
 --    Only fires for already-registered invitees (new users have no auth.users row yet).
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.handle_invitation_notification() CASCADE;
 CREATE OR REPLACE FUNCTION public.handle_invitation_notification()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1768,6 +1989,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS on_invitation_created ON public.invitations;
 CREATE TRIGGER on_invitation_created
   AFTER INSERT ON public.invitations
   FOR EACH ROW EXECUTE FUNCTION public.handle_invitation_notification();
@@ -1786,6 +2008,7 @@ CREATE TRIGGER on_invitation_created
 -- when the user has no membership (e.g. after being removed from a household).
 -- =============================================================================
 
+DROP FUNCTION IF EXISTS public.get_or_create_account() CASCADE;
 CREATE OR REPLACE FUNCTION public.get_or_create_account()
 RETURNS uuid
 LANGUAGE plpgsql
@@ -1853,7 +2076,11 @@ GRANT EXECUTE ON FUNCTION public.get_or_create_account() TO authenticated;
 -- (enforced by the existing "account_members: read own rows" policy).
 -- =============================================================================
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.account_members;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='account_members') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.account_members;
+  END IF;
+END $pub$;
 
 -- ────────────────────────────────────────────────────────────────────
 -- add_remove_member_fn.sql
@@ -1870,6 +2097,10 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.account_members;
 -- get_account_members() and accept_invitation().
 -- =============================================================================
 
+DROP FUNCTION IF EXISTS public.remove_account_member(
+  p_account_id uuid,
+  p_member_id  uuid
+) CASCADE;
 CREATE OR REPLACE FUNCTION public.remove_account_member(
   p_account_id uuid,
   p_member_id  uuid
@@ -1923,6 +2154,8 @@ GRANT EXECUTE ON FUNCTION public.remove_account_member(uuid, uuid) TO authentica
 -- =============================================================================
 
 -- Owners can remove any member; members can remove themselves (leave).
+DROP POLICY IF EXISTS "account_members: delete self or as owner"
+  ON public.account_members;
 CREATE POLICY "account_members: delete self or as owner"
   ON public.account_members FOR DELETE
   USING (
@@ -1956,6 +2189,7 @@ CREATE POLICY "account_members: delete self or as owner"
 -- -----------------------------------------------------------------------------
 -- 1. accept_invitation (updated)
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.accept_invitation(p_token uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.accept_invitation(p_token uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -2001,6 +2235,7 @@ $$;
 -- Returns household name + inviter name for a pending invitation.
 -- Any authenticated user can call this if they possess the token.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_invitation_by_token(p_token uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_invitation_by_token(p_token uuid)
 RETURNS TABLE (account_name text, invited_by_name text)
 LANGUAGE plpgsql
@@ -2037,6 +2272,8 @@ GRANT EXECUTE ON FUNCTION public.get_invitation_by_token(uuid) TO authenticated;
 
 
 -- 1. Allow users to delete their own notifications (dismiss button).
+DROP POLICY IF EXISTS "user deletes own notifications"
+  ON public.notifications;
 CREATE POLICY "user deletes own notifications"
   ON public.notifications FOR DELETE
   USING (user_id = auth.uid());
@@ -2044,6 +2281,7 @@ CREATE POLICY "user deletes own notifications"
 
 -- 2. Update accept_invitation() to DELETE the invitation notification instead
 --    of marking it read, so it disappears from the dropdown immediately.
+DROP FUNCTION IF EXISTS public.accept_invitation(p_token uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.accept_invitation(p_token uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -2124,16 +2362,26 @@ UPDATE public.invitations      SET role = 'parent' WHERE role = 'member';
 -- 3. ADD new constraints (rows are now valid)
 -- =============================================================================
 
-ALTER TABLE public.account_members
-  ADD CONSTRAINT account_members_role_check
-  CHECK (role IN ('admin', 'parent', 'child'));
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'account_members_role_check') THEN
+    ALTER TABLE public.account_members
+      ADD CONSTRAINT account_members_role_check
+      CHECK (role IN ('admin', 'parent', 'child'));
+  END IF;
+END $$;
 
 ALTER TABLE public.account_members
   ALTER COLUMN role SET DEFAULT 'parent';
 
-ALTER TABLE public.invitations
-  ADD CONSTRAINT invitations_role_check
-  CHECK (role IN ('parent', 'child'));
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'invitations_role_check') THEN
+    ALTER TABLE public.invitations
+      ADD CONSTRAINT invitations_role_check
+      CHECK (role IN ('parent', 'child'));
+  END IF;
+END $$;
 
 ALTER TABLE public.invitations
   ALTER COLUMN role SET DEFAULT 'parent';
@@ -2161,6 +2409,8 @@ ALTER TABLE public.invitations
 
 DROP POLICY IF EXISTS "accounts: owners can update" ON public.accounts;
 
+DROP POLICY IF EXISTS "accounts: admins can update"
+  ON public.accounts;
 CREATE POLICY "accounts: admins can update"
   ON public.accounts FOR UPDATE
   USING (
@@ -2177,6 +2427,8 @@ CREATE POLICY "accounts: admins can update"
 
 DROP POLICY IF EXISTS "account_members: delete self or as owner" ON public.account_members;
 
+DROP POLICY IF EXISTS "account_members: delete self or as admin"
+  ON public.account_members;
 CREATE POLICY "account_members: delete self or as admin"
   ON public.account_members FOR DELETE
   USING (
@@ -2191,6 +2443,8 @@ CREATE POLICY "account_members: delete self or as admin"
 
 DROP POLICY IF EXISTS "account_members: owners can update permissions" ON public.account_members;
 
+DROP POLICY IF EXISTS "account_members: admins can update permissions"
+  ON public.account_members;
 CREATE POLICY "account_members: admins can update permissions"
   ON public.account_members FOR UPDATE
   USING (
@@ -2210,6 +2464,8 @@ DROP POLICY IF EXISTS "categories: members can insert" ON public.categories;
 DROP POLICY IF EXISTS "categories: members can update" ON public.categories;
 DROP POLICY IF EXISTS "categories: members can delete" ON public.categories;
 
+DROP POLICY IF EXISTS "categories: members can read"
+  ON public.categories;
 CREATE POLICY "categories: members can read"
   ON public.categories FOR SELECT
   USING (
@@ -2221,6 +2477,8 @@ CREATE POLICY "categories: members can read"
     )
   );
 
+DROP POLICY IF EXISTS "categories: members can insert"
+  ON public.categories;
 CREATE POLICY "categories: members can insert"
   ON public.categories FOR INSERT
   WITH CHECK (
@@ -2232,6 +2490,8 @@ CREATE POLICY "categories: members can insert"
     )
   );
 
+DROP POLICY IF EXISTS "categories: members can update"
+  ON public.categories;
 CREATE POLICY "categories: members can update"
   ON public.categories FOR UPDATE
   USING (
@@ -2244,6 +2504,8 @@ CREATE POLICY "categories: members can update"
   );
 
 -- Only admins can delete categories
+DROP POLICY IF EXISTS "categories: admins can delete"
+  ON public.categories;
 CREATE POLICY "categories: admins can delete"
   ON public.categories FOR DELETE
   USING (
@@ -2263,6 +2525,8 @@ DROP POLICY IF EXISTS "transactions: members can insert" ON public.transactions;
 DROP POLICY IF EXISTS "transactions: members can update" ON public.transactions;
 DROP POLICY IF EXISTS "transactions: members can delete" ON public.transactions;
 
+DROP POLICY IF EXISTS "transactions: members can read"
+  ON public.transactions;
 CREATE POLICY "transactions: members can read"
   ON public.transactions FOR SELECT
   USING (
@@ -2274,6 +2538,8 @@ CREATE POLICY "transactions: members can read"
     )
   );
 
+DROP POLICY IF EXISTS "transactions: members can insert"
+  ON public.transactions;
 CREATE POLICY "transactions: members can insert"
   ON public.transactions FOR INSERT
   WITH CHECK (
@@ -2285,6 +2551,8 @@ CREATE POLICY "transactions: members can insert"
     )
   );
 
+DROP POLICY IF EXISTS "transactions: members can update"
+  ON public.transactions;
 CREATE POLICY "transactions: members can update"
   ON public.transactions FOR UPDATE
   USING (
@@ -2297,6 +2565,8 @@ CREATE POLICY "transactions: members can update"
   );
 
 -- Only admins can delete transactions
+DROP POLICY IF EXISTS "transactions: admins can delete"
+  ON public.transactions;
 CREATE POLICY "transactions: admins can delete"
   ON public.transactions FOR DELETE
   USING (
@@ -2315,6 +2585,8 @@ DROP POLICY IF EXISTS "invitations: owners can read"   ON public.invitations;
 DROP POLICY IF EXISTS "invitations: owners can insert" ON public.invitations;
 DROP POLICY IF EXISTS "invitations: owners can delete" ON public.invitations;
 
+DROP POLICY IF EXISTS "invitations: admins can read"
+  ON public.invitations;
 CREATE POLICY "invitations: admins can read"
   ON public.invitations FOR SELECT
   USING (
@@ -2326,6 +2598,8 @@ CREATE POLICY "invitations: admins can read"
     )
   );
 
+DROP POLICY IF EXISTS "invitations: admins can insert"
+  ON public.invitations;
 CREATE POLICY "invitations: admins can insert"
   ON public.invitations FOR INSERT
   WITH CHECK (
@@ -2337,6 +2611,8 @@ CREATE POLICY "invitations: admins can insert"
     )
   );
 
+DROP POLICY IF EXISTS "invitations: admins can delete"
+  ON public.invitations;
 CREATE POLICY "invitations: admins can delete"
   ON public.invitations FOR DELETE
   USING (
@@ -2355,6 +2631,8 @@ DROP POLICY IF EXISTS "members select shopping" ON public.shopping_items;
 DROP POLICY IF EXISTS "members insert shopping" ON public.shopping_items;
 DROP POLICY IF EXISTS "members delete shopping" ON public.shopping_items;
 
+DROP POLICY IF EXISTS "members select shopping"
+  ON public.shopping_items;
 CREATE POLICY "members select shopping"
   ON public.shopping_items FOR SELECT
   USING (account_id IN (
@@ -2363,6 +2641,8 @@ CREATE POLICY "members select shopping"
       AND (role = 'admin' OR (role IN ('parent', 'child') AND shopping_access IN ('read', 'write')))
   ));
 
+DROP POLICY IF EXISTS "members insert shopping"
+  ON public.shopping_items;
 CREATE POLICY "members insert shopping"
   ON public.shopping_items FOR INSERT
   WITH CHECK (account_id IN (
@@ -2372,6 +2652,8 @@ CREATE POLICY "members insert shopping"
   ));
 
 -- Only admins can delete shopping items
+DROP POLICY IF EXISTS "admins delete shopping"
+  ON public.shopping_items;
 CREATE POLICY "admins delete shopping"
   ON public.shopping_items FOR DELETE
   USING (account_id IN (
@@ -2388,6 +2670,8 @@ DROP POLICY IF EXISTS "members insert calendar" ON public.calendar_events;
 DROP POLICY IF EXISTS "members update calendar" ON public.calendar_events;
 DROP POLICY IF EXISTS "members delete calendar" ON public.calendar_events;
 
+DROP POLICY IF EXISTS "members select calendar"
+  ON public.calendar_events;
 CREATE POLICY "members select calendar"
   ON public.calendar_events FOR SELECT
   USING (account_id IN (
@@ -2396,6 +2680,8 @@ CREATE POLICY "members select calendar"
       AND (role = 'admin' OR (role IN ('parent', 'child') AND calendar_access IN ('read', 'write')))
   ));
 
+DROP POLICY IF EXISTS "members insert calendar"
+  ON public.calendar_events;
 CREATE POLICY "members insert calendar"
   ON public.calendar_events FOR INSERT
   WITH CHECK (account_id IN (
@@ -2404,6 +2690,8 @@ CREATE POLICY "members insert calendar"
       AND (role = 'admin' OR (role IN ('parent', 'child') AND calendar_access = 'write'))
   ));
 
+DROP POLICY IF EXISTS "members update calendar"
+  ON public.calendar_events;
 CREATE POLICY "members update calendar"
   ON public.calendar_events FOR UPDATE
   USING (account_id IN (
@@ -2413,6 +2701,8 @@ CREATE POLICY "members update calendar"
   ));
 
 -- Only admins can delete calendar events
+DROP POLICY IF EXISTS "admins delete calendar"
+  ON public.calendar_events;
 CREATE POLICY "admins delete calendar"
   ON public.calendar_events FOR DELETE
   USING (account_id IN (
@@ -2428,6 +2718,7 @@ CREATE POLICY "admins delete calendar"
 
 -- ── accept_invitation — copy access columns from invitation to membership ─────
 
+DROP FUNCTION IF EXISTS public.accept_invitation(p_token uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.accept_invitation(p_token uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -2474,6 +2765,10 @@ $$;
 
 -- ── remove_account_member — check for admin role ──────────────────────────────
 
+DROP FUNCTION IF EXISTS public.remove_account_member(
+  p_account_id uuid,
+  p_member_id  uuid
+) CASCADE;
 CREATE OR REPLACE FUNCTION public.remove_account_member(
   p_account_id uuid,
   p_member_id  uuid
@@ -2512,6 +2807,7 @@ $$;
 
 -- ── get_or_create_account — use admin role for new accounts ───────────────────
 
+DROP FUNCTION IF EXISTS public.get_or_create_account() CASCADE;
 CREATE OR REPLACE FUNCTION public.get_or_create_account()
 RETURNS uuid
 LANGUAGE plpgsql
@@ -2561,6 +2857,7 @@ $$;
 
 -- ── handle_new_user — use admin role for new accounts ────────────────────────
 
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -2665,6 +2962,7 @@ WHERE role = 'admin';
 
 DROP FUNCTION IF EXISTS public.get_account_members(uuid);
 
+DROP FUNCTION IF EXISTS public.get_account_members(p_account_id uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_account_members(p_account_id uuid)
 RETURNS TABLE (
   user_id         uuid,
@@ -2714,6 +3012,7 @@ $$;
 -- 5. accept_invitation — copy new columns to the new membership row
 -- =============================================================================
 
+DROP FUNCTION IF EXISTS public.accept_invitation(p_token uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.accept_invitation(p_token uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -2801,6 +3100,7 @@ ALTER TABLE meal_ingredients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meal_plan_slots  ENABLE ROW LEVEL SECURITY;
 
 -- meals: members with any shopping_access can read; write requires shopping_access = 'write'
+DROP POLICY IF EXISTS "meals_select" ON meals;
 CREATE POLICY "meals_select" ON meals
   FOR SELECT USING (
     EXISTS (
@@ -2811,6 +3111,7 @@ CREATE POLICY "meals_select" ON meals
     )
   );
 
+DROP POLICY IF EXISTS "meals_insert" ON meals;
 CREATE POLICY "meals_insert" ON meals
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -2821,6 +3122,7 @@ CREATE POLICY "meals_insert" ON meals
     )
   );
 
+DROP POLICY IF EXISTS "meals_update" ON meals;
 CREATE POLICY "meals_update" ON meals
   FOR UPDATE USING (
     EXISTS (
@@ -2831,6 +3133,7 @@ CREATE POLICY "meals_update" ON meals
     )
   );
 
+DROP POLICY IF EXISTS "meals_delete" ON meals;
 CREATE POLICY "meals_delete" ON meals
   FOR DELETE USING (
     EXISTS (
@@ -2842,6 +3145,7 @@ CREATE POLICY "meals_delete" ON meals
   );
 
 -- meal_ingredients: inherit access via parent meal → account
+DROP POLICY IF EXISTS "meal_ingredients_select" ON meal_ingredients;
 CREATE POLICY "meal_ingredients_select" ON meal_ingredients
   FOR SELECT USING (
     EXISTS (
@@ -2853,6 +3157,7 @@ CREATE POLICY "meal_ingredients_select" ON meal_ingredients
     )
   );
 
+DROP POLICY IF EXISTS "meal_ingredients_insert" ON meal_ingredients;
 CREATE POLICY "meal_ingredients_insert" ON meal_ingredients
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -2864,6 +3169,7 @@ CREATE POLICY "meal_ingredients_insert" ON meal_ingredients
     )
   );
 
+DROP POLICY IF EXISTS "meal_ingredients_update" ON meal_ingredients;
 CREATE POLICY "meal_ingredients_update" ON meal_ingredients
   FOR UPDATE USING (
     EXISTS (
@@ -2875,6 +3181,7 @@ CREATE POLICY "meal_ingredients_update" ON meal_ingredients
     )
   );
 
+DROP POLICY IF EXISTS "meal_ingredients_delete" ON meal_ingredients;
 CREATE POLICY "meal_ingredients_delete" ON meal_ingredients
   FOR DELETE USING (
     EXISTS (
@@ -2887,6 +3194,7 @@ CREATE POLICY "meal_ingredients_delete" ON meal_ingredients
   );
 
 -- meal_plan_slots: same access pattern as meals
+DROP POLICY IF EXISTS "meal_plan_slots_select" ON meal_plan_slots;
 CREATE POLICY "meal_plan_slots_select" ON meal_plan_slots
   FOR SELECT USING (
     EXISTS (
@@ -2897,6 +3205,7 @@ CREATE POLICY "meal_plan_slots_select" ON meal_plan_slots
     )
   );
 
+DROP POLICY IF EXISTS "meal_plan_slots_insert" ON meal_plan_slots;
 CREATE POLICY "meal_plan_slots_insert" ON meal_plan_slots
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -2907,6 +3216,7 @@ CREATE POLICY "meal_plan_slots_insert" ON meal_plan_slots
     )
   );
 
+DROP POLICY IF EXISTS "meal_plan_slots_update" ON meal_plan_slots;
 CREATE POLICY "meal_plan_slots_update" ON meal_plan_slots
   FOR UPDATE USING (
     EXISTS (
@@ -2917,6 +3227,7 @@ CREATE POLICY "meal_plan_slots_update" ON meal_plan_slots
     )
   );
 
+DROP POLICY IF EXISTS "meal_plan_slots_delete" ON meal_plan_slots;
 CREATE POLICY "meal_plan_slots_delete" ON meal_plan_slots
   FOR DELETE USING (
     EXISTS (
@@ -2943,6 +3254,8 @@ CREATE TABLE IF NOT EXISTS public.messages (
 
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "account members read messages"
+  ON public.messages;
 CREATE POLICY "account members read messages"
   ON public.messages FOR SELECT
   USING (
@@ -2952,6 +3265,8 @@ CREATE POLICY "account members read messages"
     )
   );
 
+DROP POLICY IF EXISTS "account members insert own messages"
+  ON public.messages;
 CREATE POLICY "account members insert own messages"
   ON public.messages FOR INSERT
   WITH CHECK (
@@ -2962,10 +3277,15 @@ CREATE POLICY "account members insert own messages"
     )
   );
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='messages') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+  END IF;
+END $pub$;
 
 -- ── Phase 1b: notification trigger ───────────────────────────────────────── --
 
+DROP FUNCTION IF EXISTS public.notify_members_on_message() CASCADE;
 CREATE OR REPLACE FUNCTION public.notify_members_on_message()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
@@ -2991,6 +3311,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS on_new_message ON public.messages;
 CREATE TRIGGER on_new_message
   AFTER INSERT ON public.messages
   FOR EACH ROW EXECUTE FUNCTION public.notify_members_on_message();
@@ -3017,6 +3338,7 @@ CREATE TABLE IF NOT EXISTS public.push_subscriptions (
 
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "own subscriptions" ON public.push_subscriptions;
 CREATE POLICY "own subscriptions" ON public.push_subscriptions
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
@@ -3034,6 +3356,8 @@ ALTER TABLE public.messages
 -- Update RLS: members can read group messages and their own DMs
 DROP POLICY IF EXISTS "account members read messages"                ON public.messages;
 DROP POLICY IF EXISTS "messages: members can read group and own DMs" ON public.messages;
+DROP POLICY IF EXISTS "messages: members can read group and own DMs"
+  ON public.messages;
 CREATE POLICY "messages: members can read group and own DMs"
   ON public.messages FOR SELECT
   USING (
@@ -3052,6 +3376,8 @@ CREATE POLICY "messages: members can read group and own DMs"
 -- Note: no recipient membership check needed — the SELECT policy enforces DM visibility
 DROP POLICY IF EXISTS "account members insert own messages"       ON public.messages;
 DROP POLICY IF EXISTS "messages: members can insert own messages" ON public.messages;
+DROP POLICY IF EXISTS "messages: members can insert own messages"
+  ON public.messages;
 CREATE POLICY "messages: members can insert own messages"
   ON public.messages FOR INSERT
   WITH CHECK (
@@ -3064,6 +3390,7 @@ CREATE POLICY "messages: members can insert own messages"
 
 -- Replace trigger function to handle both group and DM notifications
 -- (The trigger itself is unchanged — it already calls this function by name)
+DROP FUNCTION IF EXISTS public.notify_members_on_message() CASCADE;
 CREATE OR REPLACE FUNCTION public.notify_members_on_message()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
@@ -3112,6 +3439,8 @@ CREATE TABLE IF NOT EXISTS categorization_rules (
 
 ALTER TABLE categorization_rules ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Members can manage their account's categorization rules"
+  ON categorization_rules;
 CREATE POLICY "Members can manage their account's categorization rules"
   ON categorization_rules
   FOR ALL
@@ -3133,10 +3462,21 @@ ALTER TABLE categorization_rules
   ADD COLUMN IF NOT EXISTS amount_max_cents integer;
 
 -- Migrate existing exact-match rules: treat them as an exact range.
-UPDATE categorization_rules
-   SET amount_min_cents = amount_cents,
-       amount_max_cents = amount_cents
- WHERE amount_cents IS NOT NULL;
+-- Guarded so re-runs (where amount_cents has already been dropped) succeed.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name   = 'categorization_rules'
+      AND column_name  = 'amount_cents'
+  ) THEN
+    EXECUTE 'UPDATE categorization_rules '
+         || 'SET amount_min_cents = amount_cents, '
+         || '    amount_max_cents = amount_cents '
+         || 'WHERE amount_cents IS NOT NULL';
+  END IF;
+END $$;
 
 ALTER TABLE categorization_rules
   DROP COLUMN IF EXISTS amount_cents;
@@ -3164,6 +3504,7 @@ ALTER TABLE categorization_rules
 -- Checking  = balance_cents
 -- Savings   = -transfers_cents
 
+DROP FUNCTION IF EXISTS get_account_balance(p_account_id uuid) CASCADE;
 CREATE OR REPLACE FUNCTION get_account_balance(p_account_id uuid)
 RETURNS TABLE (
   cashflow_cents  bigint,
@@ -3202,6 +3543,8 @@ CREATE INDEX IF NOT EXISTS budgets_account_id_idx ON budgets (account_id);
 
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Members can manage their account's budgets"
+  ON budgets;
 CREATE POLICY "Members can manage their account's budgets"
   ON budgets
   FOR ALL
@@ -3235,6 +3578,8 @@ CREATE INDEX IF NOT EXISTS savings_goals_account_id_idx ON savings_goals (accoun
 
 ALTER TABLE savings_goals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Members can manage their account's savings goals"
+  ON savings_goals;
 CREATE POLICY "Members can manage their account's savings goals"
   ON savings_goals
   FOR ALL
@@ -3278,6 +3623,8 @@ CREATE INDEX IF NOT EXISTS recurring_transactions_account_idx
 
 ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Members can manage their account's recurring transactions"
+  ON recurring_transactions;
 CREATE POLICY "Members can manage their account's recurring transactions"
   ON recurring_transactions
   FOR ALL
@@ -3326,6 +3673,8 @@ CREATE INDEX IF NOT EXISTS message_reads_account_conv_idx
 ALTER TABLE public.message_reads ENABLE ROW LEVEL SECURITY;
 
 -- Account members can read each other's read timestamps (needed for read receipts).
+DROP POLICY IF EXISTS "members read account reads"
+  ON public.message_reads;
 CREATE POLICY "members read account reads"
   ON public.message_reads FOR SELECT
   USING (
@@ -3335,6 +3684,8 @@ CREATE POLICY "members read account reads"
     )
   );
 
+DROP POLICY IF EXISTS "users insert own reads"
+  ON public.message_reads;
 CREATE POLICY "users insert own reads"
   ON public.message_reads FOR INSERT
   WITH CHECK (
@@ -3345,12 +3696,18 @@ CREATE POLICY "users insert own reads"
     )
   );
 
+DROP POLICY IF EXISTS "users update own reads"
+  ON public.message_reads;
 CREATE POLICY "users update own reads"
   ON public.message_reads FOR UPDATE
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.message_reads;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='message_reads') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.message_reads;
+  END IF;
+END $pub$;
 
 
 -- -----------------------------------------------------------------------------
@@ -3358,6 +3715,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.message_reads;
 --    'message' notifications for that conversation.  This is what kills the
 --    "old chat keeps notifying" bug.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.clear_message_notifications_on_read() CASCADE;
 CREATE OR REPLACE FUNCTION public.clear_message_notifications_on_read()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
@@ -3370,6 +3728,7 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS on_message_read ON public.message_reads;
+DROP TRIGGER IF EXISTS on_message_read ON public.message_reads;
 CREATE TRIGGER on_message_read
   AFTER INSERT OR UPDATE ON public.message_reads
   FOR EACH ROW EXECUTE FUNCTION public.clear_message_notifications_on_read();
@@ -3379,6 +3738,7 @@ CREATE TRIGGER on_message_read
 -- 3. Replace notify_members_on_message() to coalesce per (recipient, conv).
 --    Also stamps `data.conversation_id` so the trigger above can target it.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.notify_members_on_message() CASCADE;
 CREATE OR REPLACE FUNCTION public.notify_members_on_message()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
@@ -3441,6 +3801,7 @@ $$;
 -- 4. RPC: total unread message count for the active user across all
 --    conversations in the account.  Powers the nav-bar badge.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_unread_message_count(p_account_id uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_unread_message_count(p_account_id uuid)
 RETURNS bigint
 LANGUAGE sql STABLE SECURITY DEFINER AS $$
@@ -3516,6 +3877,8 @@ CREATE INDEX IF NOT EXISTS transaction_receipts_account_idx
 ALTER TABLE public.transaction_receipts ENABLE ROW LEVEL SECURITY;
 
 -- Members with finance_access in ('read', 'write') can SELECT.
+DROP POLICY IF EXISTS "members read receipts"
+  ON public.transaction_receipts;
 CREATE POLICY "members read receipts"
   ON public.transaction_receipts FOR SELECT
   USING (
@@ -3528,6 +3891,8 @@ CREATE POLICY "members read receipts"
   );
 
 -- Members with finance_access = 'write' can INSERT.
+DROP POLICY IF EXISTS "members insert receipts"
+  ON public.transaction_receipts;
 CREATE POLICY "members insert receipts"
   ON public.transaction_receipts FOR INSERT
   WITH CHECK (
@@ -3540,6 +3905,8 @@ CREATE POLICY "members insert receipts"
   );
 
 -- Members with finance_access = 'write' can DELETE.
+DROP POLICY IF EXISTS "members delete receipts"
+  ON public.transaction_receipts;
 CREATE POLICY "members delete receipts"
   ON public.transaction_receipts FOR DELETE
   USING (
@@ -3563,6 +3930,8 @@ ON CONFLICT DO NOTHING;
 -- Members of that account can read; members with finance_access='write' can
 -- insert / update / delete.
 
+DROP POLICY IF EXISTS "members read receipt files"
+  ON storage.objects;
 CREATE POLICY "members read receipt files"
   ON storage.objects FOR SELECT
   USING (
@@ -3575,6 +3944,8 @@ CREATE POLICY "members read receipt files"
     )
   );
 
+DROP POLICY IF EXISTS "members upload receipt files"
+  ON storage.objects;
 CREATE POLICY "members upload receipt files"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -3587,6 +3958,8 @@ CREATE POLICY "members upload receipt files"
     )
   );
 
+DROP POLICY IF EXISTS "members delete receipt files"
+  ON storage.objects;
 CREATE POLICY "members delete receipt files"
   ON storage.objects FOR DELETE
   USING (
@@ -3604,6 +3977,7 @@ CREATE POLICY "members delete receipt files"
 -- 3. RPC: counts per transaction id (used by the list view to render the
 --    paperclip indicator without one round-trip per row).
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_receipt_counts(p_transaction_ids uuid[]) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_receipt_counts(p_transaction_ids uuid[])
 RETURNS TABLE (transaction_id uuid, count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER AS $$
@@ -3667,6 +4041,8 @@ CREATE INDEX IF NOT EXISTS subscriptions_account_idx
 
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "members read subscriptions"
+  ON public.subscriptions;
 CREATE POLICY "members read subscriptions"
   ON public.subscriptions FOR SELECT
   USING (
@@ -3678,6 +4054,8 @@ CREATE POLICY "members read subscriptions"
     )
   );
 
+DROP POLICY IF EXISTS "members write subscriptions"
+  ON public.subscriptions;
 CREATE POLICY "members write subscriptions"
   ON public.subscriptions FOR INSERT
   WITH CHECK (
@@ -3689,6 +4067,8 @@ CREATE POLICY "members write subscriptions"
     )
   );
 
+DROP POLICY IF EXISTS "members update subscriptions"
+  ON public.subscriptions;
 CREATE POLICY "members update subscriptions"
   ON public.subscriptions FOR UPDATE
   USING (
@@ -3721,6 +4101,8 @@ CREATE INDEX IF NOT EXISTS subscription_match_patterns_sub_idx
 
 ALTER TABLE public.subscription_match_patterns ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "members read patterns"
+  ON public.subscription_match_patterns;
 CREATE POLICY "members read patterns"
   ON public.subscription_match_patterns FOR SELECT
   USING (
@@ -3733,6 +4115,8 @@ CREATE POLICY "members read patterns"
     )
   );
 
+DROP POLICY IF EXISTS "members write patterns"
+  ON public.subscription_match_patterns;
 CREATE POLICY "members write patterns"
   ON public.subscription_match_patterns FOR INSERT
   WITH CHECK (
@@ -3745,6 +4129,8 @@ CREATE POLICY "members write patterns"
     )
   );
 
+DROP POLICY IF EXISTS "members delete patterns"
+  ON public.subscription_match_patterns;
 CREATE POLICY "members delete patterns"
   ON public.subscription_match_patterns FOR DELETE
   USING (
@@ -3775,6 +4161,11 @@ CREATE INDEX IF NOT EXISTS transactions_subscription_idx
 -- 4. RPC: spend rollups per subscription over a date window.
 --    Powers the list page's "monthly cost" column without N+1 queries.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_subscription_spend(
+  p_account_id uuid,
+  p_start_date date,
+  p_end_date   date
+) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_subscription_spend(
   p_account_id uuid,
   p_start_date date,
@@ -3835,6 +4226,8 @@ CREATE TABLE IF NOT EXISTS public.subscription_suggestion_dismissals (
 
 ALTER TABLE public.subscription_suggestion_dismissals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "members read dismissals"
+  ON public.subscription_suggestion_dismissals;
 CREATE POLICY "members read dismissals"
   ON public.subscription_suggestion_dismissals FOR SELECT
   USING (
@@ -3846,6 +4239,8 @@ CREATE POLICY "members read dismissals"
     )
   );
 
+DROP POLICY IF EXISTS "members insert dismissals"
+  ON public.subscription_suggestion_dismissals;
 CREATE POLICY "members insert dismissals"
   ON public.subscription_suggestion_dismissals FOR INSERT
   WITH CHECK (
@@ -3857,6 +4252,8 @@ CREATE POLICY "members insert dismissals"
     )
   );
 
+DROP POLICY IF EXISTS "members delete dismissals"
+  ON public.subscription_suggestion_dismissals;
 CREATE POLICY "members delete dismissals"
   ON public.subscription_suggestion_dismissals FOR DELETE
   USING (
@@ -3924,6 +4321,8 @@ CREATE TABLE IF NOT EXISTS public.password_vaults (
 
 ALTER TABLE public.password_vaults ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "members read vault meta"
+  ON public.password_vaults;
 CREATE POLICY "members read vault meta"
   ON public.password_vaults FOR SELECT
   USING (
@@ -3935,6 +4334,8 @@ CREATE POLICY "members read vault meta"
     )
   );
 
+DROP POLICY IF EXISTS "admin sets up vault"
+  ON public.password_vaults;
 CREATE POLICY "admin sets up vault"
   ON public.password_vaults FOR INSERT
   WITH CHECK (
@@ -3946,6 +4347,8 @@ CREATE POLICY "admin sets up vault"
     )
   );
 
+DROP POLICY IF EXISTS "admin updates vault meta"
+  ON public.password_vaults;
 CREATE POLICY "admin updates vault meta"
   ON public.password_vaults FOR UPDATE
   USING (
@@ -3957,6 +4360,8 @@ CREATE POLICY "admin updates vault meta"
     )
   );
 
+DROP POLICY IF EXISTS "admin deletes vault meta"
+  ON public.password_vaults;
 CREATE POLICY "admin deletes vault meta"
   ON public.password_vaults FOR DELETE
   USING (
@@ -3993,6 +4398,8 @@ CREATE INDEX IF NOT EXISTS password_entries_account_idx
 
 ALTER TABLE public.password_entries ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "members read entries"
+  ON public.password_entries;
 CREATE POLICY "members read entries"
   ON public.password_entries FOR SELECT
   USING (
@@ -4004,6 +4411,8 @@ CREATE POLICY "members read entries"
     )
   );
 
+DROP POLICY IF EXISTS "members insert entries"
+  ON public.password_entries;
 CREATE POLICY "members insert entries"
   ON public.password_entries FOR INSERT
   WITH CHECK (
@@ -4015,6 +4424,8 @@ CREATE POLICY "members insert entries"
     )
   );
 
+DROP POLICY IF EXISTS "members update entries"
+  ON public.password_entries;
 CREATE POLICY "members update entries"
   ON public.password_entries FOR UPDATE
   USING (
@@ -4026,6 +4437,8 @@ CREATE POLICY "members update entries"
     )
   );
 
+DROP POLICY IF EXISTS "members delete entries"
+  ON public.password_entries;
 CREATE POLICY "members delete entries"
   ON public.password_entries FOR DELETE
   USING (
@@ -4045,6 +4458,7 @@ CREATE POLICY "members delete entries"
 -- we drop and recreate.
 -- -----------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS public.get_account_members(uuid);
+DROP FUNCTION IF EXISTS public.get_account_members(p_account_id uuid) CASCADE;
 CREATE FUNCTION public.get_account_members(p_account_id uuid)
 RETURNS TABLE (
   user_id          uuid,
@@ -4116,6 +4530,8 @@ ALTER TABLE public.shopping_items
 
 -- RLS — explicit UPDATE policy (existing migration only granted INSERT/SELECT/DELETE).
 DROP POLICY IF EXISTS "members update shopping items" ON public.shopping_items;
+DROP POLICY IF EXISTS "members update shopping items"
+  ON public.shopping_items;
 CREATE POLICY "members update shopping items"
   ON public.shopping_items FOR UPDATE
   USING (
@@ -4177,6 +4593,8 @@ CREATE INDEX IF NOT EXISTS wiki_pages_account_idx
 
 ALTER TABLE public.wiki_pages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "members read wiki pages"
+  ON public.wiki_pages;
 CREATE POLICY "members read wiki pages"
   ON public.wiki_pages FOR SELECT
   USING (
@@ -4188,6 +4606,8 @@ CREATE POLICY "members read wiki pages"
     )
   );
 
+DROP POLICY IF EXISTS "members insert wiki pages"
+  ON public.wiki_pages;
 CREATE POLICY "members insert wiki pages"
   ON public.wiki_pages FOR INSERT
   WITH CHECK (
@@ -4199,6 +4619,8 @@ CREATE POLICY "members insert wiki pages"
     )
   );
 
+DROP POLICY IF EXISTS "members update wiki pages"
+  ON public.wiki_pages;
 CREATE POLICY "members update wiki pages"
   ON public.wiki_pages FOR UPDATE
   USING (
@@ -4210,6 +4632,8 @@ CREATE POLICY "members update wiki pages"
     )
   );
 
+DROP POLICY IF EXISTS "members delete wiki pages"
+  ON public.wiki_pages;
 CREATE POLICY "members delete wiki pages"
   ON public.wiki_pages FOR DELETE
   USING (
@@ -4226,6 +4650,7 @@ CREATE POLICY "members delete wiki pages"
 -- 3. Update get_account_members RPC to surface wiki_access
 -- -----------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS public.get_account_members(uuid);
+DROP FUNCTION IF EXISTS public.get_account_members(p_account_id uuid) CASCADE;
 CREATE FUNCTION public.get_account_members(p_account_id uuid)
 RETURNS TABLE (
   user_id          uuid,
@@ -4273,4 +4698,598 @@ BEGIN
     ORDER BY am.joined_at;
 END;
 $$;
+
+-- ────────────────────────────────────────────────────────────────────
+-- secure_invitation_email_check.sql
+-- ────────────────────────────────────────────────────────────────────
+
+-- -----------------------------------------------------------------------------
+-- Security hardening: require the caller's email to match the invited email.
+--
+-- Previously `accept_invitation(p_token)` accepted any authenticated caller
+-- who possessed the token. A leaked / forwarded link let any user join the
+-- inviting household — and, because the function deletes the caller's prior
+-- memberships first, also evicted them from their real household.
+--
+-- This migration:
+--   1. Adds a case-insensitive email match in `accept_invitation` (preserving
+--      the access-column copy from the previous `update_roles.sql` version).
+--   2. Tightens `get_invitation_by_token` so it only previews invitations
+--      addressed to the calling user's email.
+-- -----------------------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS public.accept_invitation(p_token uuid) CASCADE;
+CREATE OR REPLACE FUNCTION public.accept_invitation(p_token uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  inv          record;
+  caller_email text;
+BEGIN
+  SELECT email INTO caller_email
+  FROM auth.users
+  WHERE id = auth.uid();
+
+  IF caller_email IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT * INTO inv
+  FROM public.invitations
+  WHERE token       = p_token
+    AND accepted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invitation not found or already accepted';
+  END IF;
+
+  IF lower(inv.email) <> lower(caller_email) THEN
+    RAISE EXCEPTION 'This invitation was sent to a different email address';
+  END IF;
+
+  DELETE FROM public.account_members
+  WHERE user_id = auth.uid();
+
+  INSERT INTO public.account_members (
+    account_id, user_id, role,
+    finance_access, shopping_access, calendar_access
+  )
+  VALUES (
+    inv.account_id, auth.uid(), inv.role,
+    inv.finance_access, inv.shopping_access, inv.calendar_access
+  );
+
+  DELETE FROM public.notifications
+  WHERE user_id = auth.uid()
+    AND type    = 'invitation'
+    AND (data->>'invite_token')::uuid = p_token;
+
+  UPDATE public.invitations
+  SET accepted_at = now()
+  WHERE token = p_token;
+END;
+$$;
+
+
+DROP FUNCTION IF EXISTS public.get_invitation_by_token(p_token uuid) CASCADE;
+CREATE OR REPLACE FUNCTION public.get_invitation_by_token(p_token uuid)
+RETURNS TABLE (account_name text, invited_by_name text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  caller_email text;
+BEGIN
+  SELECT email INTO caller_email
+  FROM auth.users
+  WHERE id = auth.uid();
+
+  IF caller_email IS NULL THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    a.name::text,
+    COALESCE(
+      NULLIF(trim(p.display_name), ''),
+      split_part(u.email, '@', 1)
+    )::text
+  FROM public.invitations  i
+  JOIN public.accounts     a ON a.id  = i.account_id
+  JOIN auth.users          u ON u.id  = i.invited_by
+  LEFT JOIN public.profiles p ON p.id = i.invited_by
+  WHERE i.token       = p_token
+    AND i.accepted_at IS NULL
+    AND lower(i.email) = lower(caller_email);
+END;
+$$;
+
+-- ────────────────────────────────────────────────────────────────────
+-- secure_finance_access_policies.sql
+-- ────────────────────────────────────────────────────────────────────
+
+-- -----------------------------------------------------------------------------
+-- Security hardening: enforce finance_access on the remaining finance tables.
+--
+-- Previously `budgets`, `savings_goals`, `recurring_transactions`, and
+-- `categorization_rules` each shipped with a single `FOR ALL` policy that only
+-- checked household membership. A `child` (or any member with
+-- `finance_access = 'none'`) could read AND write all four tables. Recurring
+-- transactions in particular auto-generate real `transactions` rows on a
+-- schedule, fully bypassing the per-row finance_access enforcement that the
+-- `transactions` table already had.
+--
+-- This migration replaces those FOR ALL policies with the four-policy pattern
+-- already used by `transactions` and `categories` in `update_roles.sql`:
+--   SELECT  → admin OR (parent AND finance_access IN ('read', 'write'))
+--   INSERT  → admin OR (parent AND finance_access = 'write')
+--   UPDATE  → admin OR (parent AND finance_access = 'write')
+--   DELETE  → admin only
+-- All policies use both USING and WITH CHECK where applicable so an authorised
+-- writer can't move a row across accounts.
+-- -----------------------------------------------------------------------------
+
+
+-- ── budgets ─────────────────────────────────────────────────────────────────
+
+DROP POLICY IF EXISTS "Members can manage their account's budgets" ON public.budgets;
+
+DROP POLICY IF EXISTS "budgets: members can read"
+  ON public.budgets;
+CREATE POLICY "budgets: members can read"
+  ON public.budgets FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = budgets.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access IN ('read', 'write')))
+    )
+  );
+
+DROP POLICY IF EXISTS "budgets: members can insert"
+  ON public.budgets;
+CREATE POLICY "budgets: members can insert"
+  ON public.budgets FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = budgets.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  );
+
+DROP POLICY IF EXISTS "budgets: members can update"
+  ON public.budgets;
+CREATE POLICY "budgets: members can update"
+  ON public.budgets FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = budgets.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = budgets.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  );
+
+DROP POLICY IF EXISTS "budgets: admins can delete"
+  ON public.budgets;
+CREATE POLICY "budgets: admins can delete"
+  ON public.budgets FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = budgets.account_id
+        AND user_id    = auth.uid()
+        AND role       = 'admin'
+    )
+  );
+
+
+-- ── savings_goals ───────────────────────────────────────────────────────────
+
+DROP POLICY IF EXISTS "Members can manage their account's savings goals" ON public.savings_goals;
+
+DROP POLICY IF EXISTS "savings_goals: members can read"
+  ON public.savings_goals;
+CREATE POLICY "savings_goals: members can read"
+  ON public.savings_goals FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = savings_goals.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access IN ('read', 'write')))
+    )
+  );
+
+DROP POLICY IF EXISTS "savings_goals: members can insert"
+  ON public.savings_goals;
+CREATE POLICY "savings_goals: members can insert"
+  ON public.savings_goals FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = savings_goals.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  );
+
+DROP POLICY IF EXISTS "savings_goals: members can update"
+  ON public.savings_goals;
+CREATE POLICY "savings_goals: members can update"
+  ON public.savings_goals FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = savings_goals.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = savings_goals.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  );
+
+DROP POLICY IF EXISTS "savings_goals: admins can delete"
+  ON public.savings_goals;
+CREATE POLICY "savings_goals: admins can delete"
+  ON public.savings_goals FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = savings_goals.account_id
+        AND user_id    = auth.uid()
+        AND role       = 'admin'
+    )
+  );
+
+
+-- ── recurring_transactions ──────────────────────────────────────────────────
+
+DROP POLICY IF EXISTS "Members can manage their account's recurring transactions" ON public.recurring_transactions;
+
+DROP POLICY IF EXISTS "recurring_transactions: members can read"
+  ON public.recurring_transactions;
+CREATE POLICY "recurring_transactions: members can read"
+  ON public.recurring_transactions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = recurring_transactions.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access IN ('read', 'write')))
+    )
+  );
+
+DROP POLICY IF EXISTS "recurring_transactions: members can insert"
+  ON public.recurring_transactions;
+CREATE POLICY "recurring_transactions: members can insert"
+  ON public.recurring_transactions FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = recurring_transactions.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  );
+
+DROP POLICY IF EXISTS "recurring_transactions: members can update"
+  ON public.recurring_transactions;
+CREATE POLICY "recurring_transactions: members can update"
+  ON public.recurring_transactions FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = recurring_transactions.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = recurring_transactions.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  );
+
+DROP POLICY IF EXISTS "recurring_transactions: admins can delete"
+  ON public.recurring_transactions;
+CREATE POLICY "recurring_transactions: admins can delete"
+  ON public.recurring_transactions FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = recurring_transactions.account_id
+        AND user_id    = auth.uid()
+        AND role       = 'admin'
+    )
+  );
+
+
+-- ── categorization_rules ────────────────────────────────────────────────────
+
+DROP POLICY IF EXISTS "Members can manage their account's categorization rules" ON public.categorization_rules;
+
+DROP POLICY IF EXISTS "categorization_rules: members can read"
+  ON public.categorization_rules;
+CREATE POLICY "categorization_rules: members can read"
+  ON public.categorization_rules FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = categorization_rules.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access IN ('read', 'write')))
+    )
+  );
+
+DROP POLICY IF EXISTS "categorization_rules: members can insert"
+  ON public.categorization_rules;
+CREATE POLICY "categorization_rules: members can insert"
+  ON public.categorization_rules FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = categorization_rules.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  );
+
+DROP POLICY IF EXISTS "categorization_rules: members can update"
+  ON public.categorization_rules;
+CREATE POLICY "categorization_rules: members can update"
+  ON public.categorization_rules FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = categorization_rules.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = categorization_rules.account_id
+        AND user_id    = auth.uid()
+        AND (role = 'admin' OR (role = 'parent' AND finance_access = 'write'))
+    )
+  );
+
+DROP POLICY IF EXISTS "categorization_rules: admins can delete"
+  ON public.categorization_rules;
+CREATE POLICY "categorization_rules: admins can delete"
+  ON public.categorization_rules FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members
+      WHERE account_id = categorization_rules.account_id
+        AND user_id    = auth.uid()
+        AND role       = 'admin'
+    )
+  );
+
+-- ────────────────────────────────────────────────────────────────────
+-- add_gocardless_requisitions.sql
+-- ────────────────────────────────────────────────────────────────────
+
+-- -----------------------------------------------------------------------------
+-- GoCardless requisition ownership tracking.
+--
+-- The GoCardless integration uses a single shared app-level secret. Without
+-- per-user ownership tracking, any authenticated Oikos user could pass another
+-- user's `requisition_id` (or `gc_account_id`) to /api/gocardless/* and read
+-- their bank accounts and transactions.
+--
+-- This table records, per requisition, which user originated it. After the
+-- bank-side flow completes and /accounts resolves the discovered GoCardless
+-- account IDs, those are stashed in `gc_account_ids` so /transactions can
+-- verify the caller owns the requisition that owns the gc_account.
+--
+-- The routes use the service-role client, so RLS is for defence in depth.
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS gocardless_requisitions (
+  requisition_id  text        PRIMARY KEY,
+  user_id         uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  gc_account_ids  text[]      NOT NULL DEFAULT '{}',
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS gocardless_requisitions_user_idx
+  ON gocardless_requisitions (user_id);
+
+ALTER TABLE gocardless_requisitions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "gocardless_requisitions: owner can read"
+  ON gocardless_requisitions;
+CREATE POLICY "gocardless_requisitions: owner can read"
+  ON gocardless_requisitions FOR SELECT
+  USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "gocardless_requisitions: owner can delete"
+  ON gocardless_requisitions;
+CREATE POLICY "gocardless_requisitions: owner can delete"
+  ON gocardless_requisitions FOR DELETE
+  USING (user_id = auth.uid());
+
+-- ────────────────────────────────────────────────────────────────────
+-- secure_rls_hardening.sql
+-- ────────────────────────────────────────────────────────────────────
+
+-- -----------------------------------------------------------------------------
+-- RLS hardening pass.
+--
+-- 1. messages: validate recipient_id is a household member, and enforce
+--    `messaging_access` (the column existed but was never honoured).
+-- 2. account_members UPDATE: add WITH CHECK pinning `account_id` so an admin
+--    can't move a row across households.
+-- 3. categories UPDATE: same WITH CHECK.
+-- 4. notifications UPDATE: only allow `read_at` to change. Enforced via a
+--    BEFORE UPDATE trigger because Postgres RLS doesn't have column-level
+--    ACL on UPDATE that's expressive enough.
+-- -----------------------------------------------------------------------------
+
+
+-- ── messages ────────────────────────────────────────────────────────────────
+
+DROP POLICY IF EXISTS "messages: members can read group and own DMs" ON public.messages;
+DROP POLICY IF EXISTS "messages: members can read group and own DMs"
+  ON public.messages;
+CREATE POLICY "messages: members can read group and own DMs"
+  ON public.messages FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members am
+      WHERE am.account_id = messages.account_id
+        AND am.user_id    = auth.uid()
+        AND am.messaging_access IN ('read', 'write')
+    )
+    AND (
+      messages.recipient_id IS NULL
+      OR messages.user_id      = auth.uid()
+      OR messages.recipient_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "messages: members can insert own messages" ON public.messages;
+DROP POLICY IF EXISTS "messages: members can insert own messages"
+  ON public.messages;
+CREATE POLICY "messages: members can insert own messages"
+  ON public.messages FOR INSERT
+  WITH CHECK (
+    user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.account_members am
+      WHERE am.account_id = messages.account_id
+        AND am.user_id    = auth.uid()
+        AND am.messaging_access = 'write'
+    )
+    AND (
+      messages.recipient_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM public.account_members am2
+        WHERE am2.account_id = messages.account_id
+          AND am2.user_id    = messages.recipient_id
+      )
+    )
+  );
+
+
+-- ── account_members ─────────────────────────────────────────────────────────
+
+DROP POLICY IF EXISTS "account_members: admins can update permissions" ON public.account_members;
+DROP POLICY IF EXISTS "account_members: admins can update permissions"
+  ON public.account_members;
+CREATE POLICY "account_members: admins can update permissions"
+  ON public.account_members FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members am
+      WHERE am.account_id = account_members.account_id
+        AND am.user_id    = auth.uid()
+        AND am.role       = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members am
+      WHERE am.account_id = account_members.account_id
+        AND am.user_id    = auth.uid()
+        AND am.role       = 'admin'
+    )
+  );
+
+-- Reject account_id / user_id changes via trigger (RLS USING/WITH CHECK
+-- can't compare OLD to NEW in policy expressions).
+DROP FUNCTION IF EXISTS public.account_members_lock_identity() CASCADE;
+CREATE OR REPLACE FUNCTION public.account_members_lock_identity()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.account_id IS DISTINCT FROM OLD.account_id THEN
+    RAISE EXCEPTION 'account_id cannot be changed';
+  END IF;
+  IF NEW.user_id IS DISTINCT FROM OLD.user_id THEN
+    RAISE EXCEPTION 'user_id cannot be changed';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS account_members_lock_identity ON public.account_members;
+DROP TRIGGER IF EXISTS account_members_lock_identity ON public.account_members;
+CREATE TRIGGER account_members_lock_identity
+  BEFORE UPDATE ON public.account_members
+  FOR EACH ROW EXECUTE FUNCTION public.account_members_lock_identity();
+
+
+-- ── categories ──────────────────────────────────────────────────────────────
+
+DROP POLICY IF EXISTS "categories: members can update" ON public.categories;
+DROP POLICY IF EXISTS "categories: members can update"
+  ON public.categories;
+CREATE POLICY "categories: members can update"
+  ON public.categories FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.account_members am
+      WHERE am.account_id = categories.account_id
+        AND am.user_id    = auth.uid()
+        AND (am.role = 'admin' OR (am.role = 'parent' AND am.finance_access = 'write'))
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.account_members am
+      WHERE am.account_id = categories.account_id
+        AND am.user_id    = auth.uid()
+        AND (am.role = 'admin' OR (am.role = 'parent' AND am.finance_access = 'write'))
+    )
+  );
+
+
+-- ── notifications: only allow toggling read_at ──────────────────────────────
+
+DROP FUNCTION IF EXISTS public.notifications_lock_immutable_columns() CASCADE;
+CREATE OR REPLACE FUNCTION public.notifications_lock_immutable_columns()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.user_id    IS DISTINCT FROM OLD.user_id    THEN RAISE EXCEPTION 'user_id is immutable';    END IF;
+  IF NEW.type       IS DISTINCT FROM OLD.type       THEN RAISE EXCEPTION 'type is immutable';       END IF;
+  IF NEW.title      IS DISTINCT FROM OLD.title      THEN RAISE EXCEPTION 'title is immutable';      END IF;
+  IF NEW.body       IS DISTINCT FROM OLD.body       THEN RAISE EXCEPTION 'body is immutable';       END IF;
+  IF NEW.data       IS DISTINCT FROM OLD.data       THEN RAISE EXCEPTION 'data is immutable';       END IF;
+  IF NEW.created_at IS DISTINCT FROM OLD.created_at THEN RAISE EXCEPTION 'created_at is immutable'; END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS notifications_lock_immutable_columns ON public.notifications;
+DROP TRIGGER IF EXISTS notifications_lock_immutable_columns ON public.notifications;
+CREATE TRIGGER notifications_lock_immutable_columns
+  BEFORE UPDATE ON public.notifications
+  FOR EACH ROW EXECUTE FUNCTION public.notifications_lock_immutable_columns();
 

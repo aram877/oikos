@@ -38,11 +38,14 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[invitations.GET] db error', error)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 
   return NextResponse.json({ invitations: data ?? [] })
 }
+
+const TokenSchema = z.string().uuid()
 
 export async function DELETE(request: NextRequest) {
   const supabase = await createServerClient()
@@ -53,19 +56,45 @@ export async function DELETE(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url)
-  const token = searchParams.get('token')
-  if (!token) {
-    return NextResponse.json({ error: 'Missing token' }, { status: 400 })
+  const tokenRaw = searchParams.get('token')
+  const tokenParsed = TokenSchema.safeParse(tokenRaw)
+  if (!tokenParsed.success) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 400 })
+  }
+
+  // Verify the caller is an admin of the account that owns the invitation —
+  // RLS would silently drop the delete for non-admins, returning a misleading
+  // success.
+  const { data: invitation, error: lookupErr } = await supabase
+    .from('invitations')
+    .select('account_id')
+    .eq('token', tokenParsed.data)
+    .is('accepted_at', null)
+    .single()
+
+  if (lookupErr || !invitation) {
+    return NextResponse.json({ error: 'Invitation not found' }, { status: 404 })
+  }
+
+  const { data: membership } = await supabase
+    .from('account_members')
+    .select('role')
+    .eq('account_id', invitation.account_id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { error } = await supabase
     .from('invitations')
     .delete()
-    .eq('token', token)
-    .is('accepted_at', null)
+    .eq('token', tokenParsed.data)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[invitations.DELETE] db error', error)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
@@ -126,10 +155,8 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (invErr || !invitation) {
-    return NextResponse.json(
-      { error: invErr?.message ?? 'Failed to create invitation' },
-      { status: 500 },
-    )
+    console.error('[invitations.POST] insert error', invErr)
+    return NextResponse.json({ error: 'Failed to create invitation' }, { status: 500 })
   }
 
   const inviteToken = invitation.token as string
@@ -158,7 +185,8 @@ export async function POST(request: NextRequest) {
       inviteErr.message.toLowerCase().includes('already exists')
 
     if (!isAlreadyRegistered) {
-      return NextResponse.json({ error: inviteErr.message }, { status: 500 })
+      console.error('[invitations.POST] inviteUserByEmail error', inviteErr)
+      return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 })
     }
 
     // ── 5b. User is already registered — send a magic link to the accept page ─ //
@@ -174,7 +202,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (otpErr) {
-      return NextResponse.json({ error: otpErr.message }, { status: 500 })
+      console.error('[invitations.POST] signInWithOtp error', otpErr)
+      return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 })
     }
   }
 
