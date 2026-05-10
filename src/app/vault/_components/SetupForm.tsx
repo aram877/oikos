@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { VAULT_MIN_PASSPHRASE } from '@/lib/vaultCrypto'
 
 interface Props {
   isAdmin: boolean
@@ -28,7 +29,10 @@ export function SetupForm({ isAdmin, onSetup }: Props) {
 
   async function submit() {
     setErr(null)
-    if (pass1.length < 8) { setErr('Passphrase must be at least 8 characters.'); return }
+    if (pass1.length < VAULT_MIN_PASSPHRASE) {
+      setErr(`Passphrase must be at least ${VAULT_MIN_PASSPHRASE} characters.`)
+      return
+    }
     if (pass1 !== pass2)  { setErr('Passphrases don’t match.'); return }
     if (!acknowledge)     { setErr('Please confirm the warning before continuing.'); return }
     setBusy(true)
@@ -61,7 +65,7 @@ export function SetupForm({ isAdmin, onSetup }: Props) {
             value={pass1}
             onChange={(e) => setPass1(e.target.value)}
             className={inputCls}
-            placeholder="At least 8 characters"
+            placeholder={`At least ${VAULT_MIN_PASSPHRASE} characters`}
           />
         </Field>
         <Field label="Confirm passphrase">

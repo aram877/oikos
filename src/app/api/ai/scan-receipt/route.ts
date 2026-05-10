@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 const VALID_CLAUDE_MODELS  = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'] as const
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
@@ -59,6 +60,20 @@ function parseExtraction(raw: string): ExtractedReceipt {
 }
 
 export async function POST(req: NextRequest) {
+  // 0. Require an authenticated Oikos user.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // 0a. Reject oversized payloads before reading the body into memory.
+  const contentLength = Number(req.headers.get('content-length') ?? '0')
+  if (contentLength > MAX_BYTES) {
+    return NextResponse.json(
+      { error: `File is too large (max ${MAX_BYTES / 1024 / 1024} MB).` },
+      { status: 413 },
+    )
+  }
+
   // 1. API key
   const auth   = req.headers.get('authorization') ?? ''
   const apiKey = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
@@ -119,8 +134,9 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '')
+      console.error('[ai/scan-receipt] anthropic error', res.status, errText.slice(0, 500))
       return NextResponse.json(
-        { error: `Anthropic API error (${res.status}): ${errText.slice(0, 200) || 'unknown'}` },
+        { error: `Anthropic API error (${res.status}).` },
         { status: 502 },
       )
     }
@@ -130,9 +146,7 @@ export async function POST(req: NextRequest) {
     const text = (data?.content ?? []).find((c: { type?: string }) => c.type === 'text')?.text ?? ''
     return NextResponse.json({ result: parseExtraction(text), model })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Network error.' },
-      { status: 502 },
-    )
+    console.error('[ai/scan-receipt] network error', err)
+    return NextResponse.json({ error: 'Network error.' }, { status: 502 })
   }
 }

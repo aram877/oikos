@@ -35,17 +35,33 @@ export function EntryDialog({ entry, initialSecret, busy, canEdit, onSubmit, onD
 
   async function copy(text: string) {
     if (!text) return
-    try { await navigator.clipboard.writeText(text) } catch { /* clipboard blocked */ }
+    try {
+      await navigator.clipboard.writeText(text)
+      // Best-effort clipboard wipe after 30s — matches industry-standard
+      // password managers. Only clears if the clipboard still contains the
+      // value we wrote (don't trample what the user copied next).
+      window.setTimeout(async () => {
+        try {
+          const current = await navigator.clipboard.readText()
+          if (current === text) await navigator.clipboard.writeText('')
+        } catch { /* clipboard read may be blocked; ignore */ }
+      }, 30_000)
+    } catch { /* clipboard blocked */ }
   }
 
   async function generate() {
-    // 16-char password from a sane alphabet.  Skip ambiguous chars.
+    // 16-char password from a sane alphabet. Reject-sample to avoid the
+    // small modulo bias of `arr[i] % chars.length` when length doesn't
+    // divide 2^32.
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*'
-    const arr = new Uint32Array(16)
-    crypto.getRandomValues(arr)
-    let out = ''
-    for (let i = 0; i < arr.length; i++) out += chars[arr[i] % chars.length]
-    setPassword(out)
+    const limit = Math.floor(0x1_0000_0000 / chars.length) * chars.length
+    const out: string[] = []
+    const buf = new Uint32Array(1)
+    while (out.length < 16) {
+      crypto.getRandomValues(buf)
+      if (buf[0] < limit) out.push(chars[buf[0] % chars.length])
+    }
+    setPassword(out.join(''))
     setReveal(true)
   }
 

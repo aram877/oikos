@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient }       from '@/lib/supabase/server'
-import { gcFetch }            from '../_lib/token'
+import { createClient }                  from '@/lib/supabase/server'
+import { gcFetch }                       from '../_lib/token'
+import { isGcAccountOwner }              from '../_lib/ownership'
 import type { InsertTransactionInput } from '@/db/types'
 
 interface GCTransactionAmount {
@@ -64,6 +65,13 @@ export async function GET(request: NextRequest) {
   if (!gcAccountId) return NextResponse.json({ error: 'gc_account_id required' }, { status: 400 })
   if (!accountId)   return NextResponse.json({ error: 'account_id required' }, { status: 400 })
 
+  // Verify the caller's requisition includes this gc_account_id. The shared
+  // GoCardless secret would otherwise let any authenticated user pull any
+  // user's transactions by guessing a gc_account_id.
+  if (!(await isGcAccountOwner(gcAccountId, user.id))) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   // Default to 90 days ago (GoCardless free-tier maximum)
   const dateFrom = searchParams.get('date_from') ?? (() => {
     const d = new Date()
@@ -77,7 +85,8 @@ export async function GET(request: NextRequest) {
     )
     if (!res.ok) {
       const text = await res.text()
-      return NextResponse.json({ error: `GoCardless: ${text}` }, { status: res.status })
+      console.error('[gocardless/transactions] gc error', res.status, text.slice(0, 500))
+      return NextResponse.json({ error: 'GoCardless error' }, { status: res.status })
     }
 
     const data = await res.json() as {
@@ -90,6 +99,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ transactions })
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    console.error('[gocardless/transactions] error', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

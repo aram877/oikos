@@ -68,6 +68,24 @@ export function MarkdownView({ source }: Props) {
               </a>
             )
           },
+          // Block third-party images: a member could otherwise embed a
+          // tracking pixel that fires for every other household member.
+          img: ({ src, alt, ...rest }) => {
+            if (typeof src !== 'string' || !isAllowedImage(src)) {
+              return <span className="text-xs text-muted-foreground">[image: {alt || 'blocked'}]</span>
+            }
+            return (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                {...rest}
+                src={src}
+                alt={alt ?? ''}
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                className="my-2 max-w-full rounded"
+              />
+            )
+          },
         }}
       >
         {source}
@@ -81,6 +99,21 @@ function isSafeUrl(url: string): boolean {
   try {
     const u = new URL(url, 'http://placeholder.invalid')
     return u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'mailto:'
+  } catch {
+    return false
+  }
+}
+
+// Only render images from same-origin paths (e.g. /uploaded/foo.png) or
+// Supabase storage. Everything else turns into a placeholder so the wiki
+// can't be used to phone home with tracking pixels.
+function isAllowedImage(src: string): boolean {
+  if (!src) return false
+  if (src.startsWith('/')) return true
+  try {
+    const u = new URL(src)
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
+    return u.hostname.endsWith('.supabase.co')
   } catch {
     return false
   }

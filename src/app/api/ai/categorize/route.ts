@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
 
 const VALID_GROQ_MODELS   = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it']
 const DEFAULT_GROQ_MODEL  = 'llama-3.3-70b-versatile'
@@ -30,7 +31,12 @@ function matchCategory(text: string, categoryNames: string[]): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  // 1. Auth
+  // 1. Require an authenticated Oikos user — the route forwards to a paid AI
+  // provider; without this it's an open relay against your domain.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const auth = req.headers.get('authorization') ?? ''
   const apiKey = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
   if (!apiKey) return NextResponse.json({ error: 'Missing API key.' }, { status: 400 })

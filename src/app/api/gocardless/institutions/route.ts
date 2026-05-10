@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const country = request.nextUrl.searchParams.get('country')
-  if (!country || country.length !== 2) {
+  if (!country || !/^[A-Za-z]{2}$/.test(country)) {
     return NextResponse.json({ error: 'country param required (2-letter ISO)' }, { status: 400 })
   }
 
@@ -25,11 +25,13 @@ export async function GET(request: NextRequest) {
     const res = await gcFetch(`/institutions/?country=${country.toUpperCase()}`)
     if (!res.ok) {
       const text = await res.text()
-      return NextResponse.json({ error: `GoCardless: ${text}` }, { status: res.status })
+      console.error('[gocardless/institutions] gc error', res.status, text.slice(0, 500))
+      return NextResponse.json({ error: 'GoCardless error' }, { status: res.status })
     }
     const data = await res.json() as GCInstitution[]
     return NextResponse.json({ institutions: data })
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    console.error('[gocardless/institutions] error', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

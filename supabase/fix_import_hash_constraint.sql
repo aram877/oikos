@@ -9,6 +9,14 @@
 
 DROP INDEX IF EXISTS transactions_account_import_hash_uidx;
 
-ALTER TABLE public.transactions
-  ADD CONSTRAINT transactions_account_import_hash_key
-  UNIQUE (account_id, import_hash);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'transactions_account_import_hash_key'
+  ) THEN
+    ALTER TABLE public.transactions
+      ADD CONSTRAINT transactions_account_import_hash_key
+      UNIQUE (account_id, import_hash);
+  END IF;
+END $$;

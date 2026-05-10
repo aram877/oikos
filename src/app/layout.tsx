@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import { createClient } from '@/lib/supabase/server'
 import HeaderNav         from '@/components/HeaderNav'
@@ -59,8 +60,8 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Apply saved theme before first paint to prevent flash */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})()` }} />
+        {/* Apply saved theme before first paint to prevent flash. */}
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <meta name="theme-color" content="#a16207" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>

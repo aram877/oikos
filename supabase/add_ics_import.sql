@@ -5,6 +5,14 @@
 ALTER TABLE public.calendar_events
   ADD COLUMN IF NOT EXISTS source_uid text;
 
-ALTER TABLE public.calendar_events
-  ADD CONSTRAINT calendar_events_account_source_uid_key
-  UNIQUE (account_id, source_uid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'calendar_events_account_source_uid_key'
+  ) THEN
+    ALTER TABLE public.calendar_events
+      ADD CONSTRAINT calendar_events_account_source_uid_key
+      UNIQUE (account_id, source_uid);
+  END IF;
+END $$;
