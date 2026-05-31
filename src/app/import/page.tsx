@@ -29,6 +29,8 @@ import type {
   MapResult,
   ParsedRow,
 } from '@/lib/csv'
+import { detectBank, parseKnownBank } from '@/lib/bankParsers'
+import type { DetectedBank } from '@/lib/bankParsers'
 import { dbClient } from '@/db/db.client'
 import type { AccountRow, InsertTransactionInput } from '@/db/types'
 
@@ -78,12 +80,14 @@ export default function ImportPage() {
   const [step, setStep] = useState<Step>('upload')
 
   // ── Step 1: Upload state ─────────────────────────────────────────────────── //
-  const [fileName,   setFileName]   = useState<string>('')
-  const [rawText,    setRawText]    = useState<string>('')
-  const [separator,  setSeparator]  = useState<';' | ',' | '\t'>(';')
-  const [skipRows,   setSkipRows]   = useState<number>(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [parseError, setParseError] = useState<string | null>(null)
+  const [fileName,      setFileName]      = useState<string>('')
+  const [rawText,       setRawText]       = useState<string>('')
+  const [separator,     setSeparator]     = useState<';' | ',' | '\t'>(';')
+  const [skipRows,      setSkipRows]      = useState<number>(0)
+  const [isDragging,    setIsDragging]    = useState(false)
+  const [parseError,    setParseError]    = useState<string | null>(null)
+  const [detectedBank,  setDetectedBank]  = useState<DetectedBank | null>(null)
+  const [bankRowCount,  setBankRowCount]  = useState<number>(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Step 2: Map state ────────────────────────────────────────────────────── //
@@ -106,14 +110,23 @@ export default function ImportPage() {
 
   const processFile = useCallback(async (file: File) => {
     setParseError(null)
+    setDetectedBank(null)
+    setBankRowCount(0)
     try {
       const text       = await readFileText(file)
       const sep        = detectSeparator(text)
-      const headerRow  = detectHeaderRow(text, sep)   // 0-based index of real header
+      const headerRow  = detectHeaderRow(text, sep)
       setFileName(file.name)
       setRawText(text)
       setSeparator(sep)
       setSkipRows(headerRow)
+
+      const bank = detectBank(text)
+      if (bank) {
+        const result = parseKnownBank(text, bank.id)
+        setDetectedBank(bank)
+        setBankRowCount(result.rows.length)
+      }
     } catch (err) {
       setParseError(err instanceof Error ? err.message : String(err))
     }
@@ -123,6 +136,22 @@ export default function ImportPage() {
   const csvPreview = rawText
     ? parseCsvText(rawText, separator, skipRows)
     : null
+
+  // ── Bank-detected fast path: skip straight to Review ────────────────────── //
+
+  async function handleBankDetectContinue() {
+    if (!rawText || !detectedBank) return
+    const result = parseKnownBank(rawText, detectedBank.id)
+    setMapResult({ parsed: result.rows, errors: [] })
+    const hashes = result.rows.map(r => r.import_hash)
+    try {
+      const existing = await dbClient.transactions.checkImportHashes(hashes)
+      setDuplicateHashes(new Set(existing))
+    } catch {
+      setDuplicateHashes(new Set())
+    }
+    setStep('review')
+  }
 
   // ── Continue from Upload to Map ──────────────────────────────────────────── //
 
@@ -291,6 +320,9 @@ export default function ImportPage() {
       <Shell step={step} source={source} onSwitchSource={setSource}>
         {/* Summary chips */}
         <div className="mb-5 flex flex-wrap gap-3 text-sm">
+          {detectedBank && (
+            <Chip color="green">{detectedBank.name} auto-parsed</Chip>
+          )}
           <Chip color="neutral">{mapResult.parsed.length} transactions parsed</Chip>
           <Chip color="green">{newRows.length} new</Chip>
           {dupCount > 0 && (
@@ -655,6 +687,26 @@ export default function ImportPage() {
                 <> · <strong className="text-neutral-700 dark:text-neutral-300">{rowCount}</strong> data row{rowCount !== 1 ? 's' : ''}</>
               )}
             </p>
+
+            {/* Bank detection banner */}
+            {detectedBank && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-800 dark:bg-green-950">
+                <div className="text-sm">
+                  <span className="font-semibold text-green-800 dark:text-green-200">
+                    {detectedBank.name} detected
+                  </span>
+                  <span className="ml-2 text-green-700 dark:text-green-400">
+                    — {bankRowCount} transactions ready, no column mapping needed
+                  </span>
+                </div>
+                <button
+                  onClick={handleBankDetectContinue}
+                  className="shrink-0 rounded bg-green-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-500"
+                >
+                  Review →
+                </button>
+              </div>
+            )}
 
             {/* Raw preview table */}
             {csvPreview && csvPreview.headers.length > 0 && (
