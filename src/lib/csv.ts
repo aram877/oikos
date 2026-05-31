@@ -104,8 +104,8 @@ export function detectHeaderRow(text: string, separator: string): number {
   const normalised = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const lines      = normalised.split('\n').slice(0, 25)
 
-  let bestRow   = 0
-  let bestScore = 0
+  let bestRawRow = 0
+  let bestScore  = 0
 
   for (let i = 0; i < lines.length; i++) {
     // Simple split is sufficient here — we only need to count keyword matches,
@@ -118,13 +118,22 @@ export function detectHeaderRow(text: string, separator: string): number {
     }).length
 
     if (score > bestScore) {
-      bestScore = score
-      bestRow   = i
+      bestScore  = score
+      bestRawRow = i
     }
   }
 
-  // Require at least 2 matching cells before trusting the detection.
-  return bestScore >= 2 ? bestRow : 0
+  if (bestScore < 2) return 0
+
+  // parseCsvText() uses tokenise() which skips empty lines, so skipRows must
+  // be expressed as a count of *non-empty* lines before the header — not the
+  // raw line index (which includes empty lines). Count non-empty lines before
+  // bestRawRow so the two functions stay in sync.
+  let nonEmptyBefore = 0
+  for (let i = 0; i < bestRawRow; i++) {
+    if (lines[i].split(separator).some(c => c.trim() !== '')) nonEmptyBefore++
+  }
+  return nonEmptyBefore
 }
 
 // ── File reading ──────────────────────────────────────────────────────────── //
